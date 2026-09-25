@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JurisClear AI — GenAI Legal Intelligence & Accessibility Platform</title>
+  <link rel="stylesheet" href="/static/styles.css?v=3.1">
+</head>
+<body>
+
+  <!-- Top Application Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-section">
+        <div class="brand-icon-wrapper">⚖️</div>
+        <div>
+          <div class="brand-logo">JurisClear AI</div>
+          <div class="brand-subtitle">GenAI Legal Intelligence & Accessibility Platform</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span id="engineBadge" class="badge badge-active-ai">⚡ Gemini Active</span>
+        <span class="badge badge-disclaimer">🛡️ Legal Info & Assistance</span>
+        <button id="btnOpenSettings" class="btn-secondary" title="Configure API Keys">
+          ⚙️ Settings
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main App Container -->
+  <main class="main-container">
+
+    <!-- Legal Disclaimer Banner -->
+    <div class="disclaimer-banner">
+      <span style="font-size: 1.2rem;">🛡️</span>
+      <span><strong>Educational Notice:</strong> JurisClear AI provides automated legal information, document navigation, and plain-English translation to help non-lawyers understand their contracts. It does not replace professional legal advice or create an attorney-client relationship.</span>
+    </div>
+
+    <!-- 3-Step Visual Onboarding Stepper -->
+    <div class="workflow-stepper">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <div class="step-text">
+          <h4>Select or Upload</h4>
+          <p>Drop a PDF/Word doc or choose a test drive contract</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <div class="step-text">
+          <h4>Auto-Scan & Simplify</h4>
+          <p>Detect traps, gotchas, and translate to plain English</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <div class="step-text">
+          <h4>Negotiate & Prepare</h4>
+          <p>Generate counter-proposals & 1-page lawyer briefs</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Intake & Input Card -->
+    <section class="intake-card">
+      <div class="intake-header">
+        <h1 class="intake-title">Understand, Compare, and Navigate Legal Contracts</h1>
+        <p class="intake-desc">Decode convoluted legalese into plain human terms, expose hidden traps, calculate favorability shifts, and prepare targeted questions for your lawyer.</p>
+      </div>
+
+      <!-- Mode Switcher -->
+      <div class="intake-mode-switcher">
+        <button id="modeSingleBtn" class="mode-btn active" onclick="switchMode('single')">📄 Analyze Single Document</button>
+        <button id="modeCompareBtn" class="mode-btn" onclick="switchMode('compare')">⚖️ Compare Two Contracts (Redline Diff)</button>
+      </div>
+
+      <!-- Quick Test Drive Samples Bar -->
+      <div class="samples-bar">
+        <span class="samples-label">⚡ Instant Test Drives:</span>
+        <button class="sample-pill" onclick="loadSample('residential_lease')">🏠 Austin Apartment Lease (Auto-Renewal Traps)</button>
+        <button class="sample-pill" onclick="loadSample('freelance_software')">💻 Freelance Dev Contract (IP Grab & Unlimited Liability)</button>
+        <button class="sample-pill" onclick="loadSample('mutual_nda')">🤝 Mutual NDA (Balanced Standard)</button>
+        <button class="sample-pill" onclick="loadSample('unilateral_nda_aggressive')">⚠️ Aggressive Vendor NDA (Perpetual $250k Penalty)</button>
+        <button class="sample-pill" onclick="loadSample('employment_offer')">👔 Executive Employment (Bonus Clawback & Moonlighting)</button>
+      </div>
+
+      <!-- Single Document Intake Mode -->
+      <div id="singleIntakeMode">
+        <div class="input-tabs">
+          <button id="tabUploadBtn" class="input-tab active" onclick="switchInputTab('upload')">📁 Upload Document (PDF / DOCX / TXT)</button>
+          <button id="tabPasteBtn" class="input-tab" onclick="switchInputTab('paste')">✍️ Paste Contract Text</button>
+        </div>
+
+        <!-- Upload Dropzone View -->
+        <div id="uploadView">
+          <div id="dropzone" class="upload-dropzone" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text">Click or drag & drop your contract here</div>
+            <div class="upload-hint">Supports PDF, Word (.docx), and Plain Text (.txt, .md) — Up to 15MB</div>
+            <input type="file" id="fileInput" style="display: none;" accept=".pdf,.docx,.doc,.txt,.md" onchange="handleFileSelect(event)">
+          </div>
+          <div id="fileUploadStatus" style="margin-top: 0.85rem; font-size: 0.92rem; color: var(--primary); display: none;"></div>
+        </div>
+
+        <!-- Paste Text View -->
+        <div id="pasteView" style="display: none;">
+          <input type="text" id="pasteDocTitle" placeholder="Document Title (e.g., Master Services Agreement 2026)" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 0.85rem; font-size: 0.95rem; outline: none;">
+          <textarea id="pasteDocText" class="text-input-area" placeholder="Paste your legal document, lease, NDA, terms of service, or offer letter text here..."></textarea>
+          <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); margin-top: 0.5rem;">
+            <span id="charCount">0 characters</span>
+            <span id="wordCount">0 words</span>
+          </div>
+        </div>
+
+        <div class="intake-actions">
+          <span style="font-size: 0.85rem; color: var(--text-muted);">🔒 Documents are processed in-memory and never stored on public servers or used for model training.</span>
+          <button id="btnAnalyze" class="btn-primary" onclick="startAnalysis()">
+            <span>🚀 Run Deep Legal Analysis</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Compare Mode Intake -->
+      <div id="compareIntakeMode" style="display: none;">
+        <p style="font-size: 0.92rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+          Upload or paste two agreements to generate a semantic redline comparison, calculating which provisions shifted in favor of or against you.
+          <button class="sample-pill" style="margin-left: 0.5rem;" onclick="loadCompareDemo()">⚡ 1-Click: Load Balanced Mutual NDA vs Aggressive NDA</button>
+        </p>
+        <div class="compare-grid">
+          <div class="compare-col">
+            <div class="compare-col-header">
+              <span>Document A (Baseline / Prior Version)</span>
+            </div>
+            <input type="text" id="docAName" value="Version 1 (Standard Mutual NDA)" style="width: 100%; padding: 0.6rem; margin-bottom: 0.6rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.9rem;">
+            <textarea id="docAText" class="text-input-area" style="min-height: 200px;" placeholder="Paste baseline or standard contract here..."></textarea>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-header">
+              <span>Document B (Revised / Counterparty Proposal)</span>
+            </div>
+            <input type="text" id="docBName" value="Version 2 (Counterparty Redline)" style="width: 100%; padding: 0.6rem; margin-bottom: 0.6rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.9rem;">
+            <textarea id="docBText" class="text-input-area" style="min-height: 200px;" placeholder="Paste revised or proposed contract here..."></textarea>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end;">
+          <button id="btnRunCompare" class="btn-primary" onclick="startComparison()">
+            <span>⚖️ Compare Documents & Analyze Risk Shift</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results Dashboard Section -->
+    <section id="resultsSection" class="results-container">
+
+      <!-- Executive Overview & Radial Risk Radar Gauge -->
+      <div class="overview-card">
+        <div class="overview-meta">
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <span id="resDocType" class="badge badge-info">Document Type</span>
+            <span id="resEngineTag" class="badge" style="background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;">AI Engine</span>
+            <span id="resReadabilityTag" class="badge" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">Grade 6 — Conversational English</span>
+          </div>
+          <h2 id="resDocTitle" class="doc-title">Document Name</h2>
+          <p id="resExecSummary" class="doc-summary">Executive summary loading...</p>
+          
+          <div class="doc-details-grid">
+            <div class="detail-item">
+              <div class="detail-label">Identified Parties</div>
+              <div id="resParties" class="detail-val">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Governing Law</div>
+              <div id="resGovLaw" class="detail-val">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Financial Commitments</div>
+              <div id="resFinancials" class="detail-val">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Animated Radial Risk Meter -->
+        <div class="risk-meter-box">
+          <div class="detail-label">Overall Risk Index</div>
+          <div class="risk-circle-wrapper">
+            <svg class="risk-svg" viewBox="0 0 120 120">
+              <circle class="risk-circle-bg" cx="60" cy="60" r="50"></circle>
+              <circle id="riskCircleProgress" class="risk-circle-progress" cx="60" cy="60" r="50"></circle>
+            </svg>
+            <div class="risk-score-display">
+              <div id="riskScoreNum" class="risk-score-number" style="color: var(--risk-critical);">72</div>
+              <div class="risk-score-max">/100</div>
+            </div>
+          </div>
+          <div id="riskLabel" class="risk-label" style="color: var(--risk-critical);">Critical Risk</div>
+          <div class="risk-stats-row">
+            <span id="statRedFlags" class="risk-pill pill-critical">3 Red Flags</span>
+            <span id="statWarningFlags" class="risk-pill pill-warning">2 Warnings</span>
+            <span id="statSafeFlags" class="risk-pill pill-safe">4 Safe</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Navigation Tabs -->
+      <nav class="feature-nav">
+        <button class="feature-tab-btn active" onclick="switchFeatureTab('simplifier')">
+          <span>📖 Plain-English Simplifier</span>
+        </button>
+        <button class="feature-tab-btn" onclick="switchFeatureTab('radar')">
+          <span>🚨 Risk Radar & Gotchas (<span id="tabRiskCount">0</span>)</span>
+        </button>
+        <button class="feature-tab-btn" onclick="switchFeatureTab('diff')">
+          <span>⚖️ Contract Diff & Redline</span>
+        </button>
+        <button class="feature-tab-btn" onclick="switchFeatureTab('qa')">
+          <span>💬 Grounded Q&A & Scenarios</span>
+        </button>
+        <button class="feature-tab-btn" onclick="switchFeatureTab('playbook')">
+          <span>📅 Action Playbook & Deadlines</span>
+        </button>
+        <button class="feature-tab-btn" onclick="switchFeatureTab('attorney')">
+          <span>💼 Lawyer Consultation Dossier</span>
+        </button>
+      </nav>
+
+      <!-- TAB 1: Simplifier (Split Screen & 3D Card Flip Mode) -->
+      <div id="pane-simplifier" class="feature-pane active">
+        <div class="simplifier-controls">
+          <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <div class="view-mode-switch">
+              <button id="viewSplitBtn" class="view-mode-btn active" onclick="switchSimplifierView('split')">📑 Split-Screen Reader</button>
+              <button id="viewFlipBtn" class="view-mode-btn" onclick="switchSimplifierView('flip')">🃏 3D Interactive Flip-Cards</button>
+            </div>
+            <input type="text" id="clauseSearchInput" class="clause-search-input" placeholder="🔍 Search clauses or terms..." oninput="handleClauseSearch()">
+          </div>
+
+          <div class="reading-level-switch">
+            <button id="lvlEli5" class="reading-btn active" onclick="setReadingLevel('eli5')">👶 ELI5 / Everyday Human</button>
+            <button id="lvlPractical" class="reading-btn" onclick="setReadingLevel('practical')">⚖️ Balanced / Practical</button>
+            <button id="lvlBusiness" class="reading-btn" onclick="setReadingLevel('business')">💼 Strategic / Business</button>
+          </div>
+        </div>
+
+        <!-- Category Filters -->
+        <div id="clauseCategoryFilters" class="category-filter-bar"></div>
+
+        <!-- Mode A: Split View -->
+        <div id="splitViewContainer" class="split-view-container">
+          <div>
+            <div class="split-col-header">
+              <span>Original Legal Contract Clauses</span>
+              <span id="clauseCountBadge" style="font-size: 0.75rem; text-transform: none;">0 clauses</span>
+            </div>
+            <div id="originalClausesList"></div>
+          </div>
+          <div>
+            <div class="split-col-header">
+              <span>Plain-English Interpretation & Takeaways</span>
+              <span id="activeLevelLabel" style="font-size: 0.75rem; color: var(--primary); text-transform: none;">Mode: ELI5</span>
+            </div>
+            <div id="simplifiedClausesList"></div>
+          </div>
+        </div>
+
+        <!-- Mode B: 3D Flip Cards View -->
+        <div id="flipCardsContainer" class="card-3d-grid" style="display: none;"></div>
+      </div>
+
+      <!-- TAB 2: Risk Radar -->
+      <div id="pane-radar" class="feature-pane">
+        <div class="category-filter-bar" style="margin-bottom: 1.5rem;">
+          <button class="filter-chip active" onclick="filterRisks('all')">All Provisions</button>
+          <button class="filter-chip" onclick="filterRisks('critical')">🚨 Critical Traps Only</button>
+          <button class="filter-chip" onclick="filterRisks('warning')">⚠️ Cautionary Warnings</button>
+          <button class="filter-chip" onclick="filterRisks('safe')">✅ Fair & Balanced Clauses</button>
+        </div>
+        <div id="riskCardsContainer"></div>
+      </div>
+
+      <!-- TAB 3: Contract Diff & Redline -->
+      <div id="pane-diff" class="feature-pane">
+        <div id="diffResultsContainer">
+          <div class="diff-summary-card">
+            <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Semantic Difference & Risk Shift Analysis</h3>
+            <p id="diffSummaryText" style="color: var(--text-secondary); font-size: 0.95rem;">Run a comparison between two agreements to inspect shifts in favorability and obligations.</p>
+            <div class="diff-stat-grid">
+              <div class="detail-item">
+                <div class="detail-label">Favorability Shift</div>
+                <div id="diffFavorability" class="detail-val" style="color: var(--risk-critical); font-size: 1.05rem;">—</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Risk Delta</div>
+                <div id="diffRiskDelta" class="detail-val" style="font-size: 1.05rem;">—</div>
+              </div>
+            </div>
+            <div id="diffRecommendationBox" style="margin-top: 1.25rem; padding: 1rem; background: #eff6ff; border-radius: var(--radius-md); border: 1px solid #bfdbfe; font-size: 0.92rem;">
+              <strong>Strategic Recommendation:</strong> <span id="diffRecommendationText">—</span>
+            </div>
+          </div>
+
+          <div style="font-weight: 800; font-size: 1.1rem; margin-bottom: 1rem;">Clause-by-Clause Differences</div>
+          <div id="diffItemsList"></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: Grounded Q&A & Scenarios -->
+      <div id="pane-qa" class="feature-pane">
+        <div class="qa-layout">
+          <div class="chat-box">
+            <div id="chatHistory" class="chat-history">
+              <div class="chat-msg assistant">
+                <strong>JurisClear Legal Copilot:</strong>
+                I have indexed your document. Ask any question about your rights, payment terms, cancellation rules, or liabilities. Every answer is grounded directly in the text with section citations.
+              </div>
+            </div>
+            <div class="chat-input-bar">
+              <input type="text" id="chatInput" class="chat-input" placeholder="Ask a question (e.g. Can my landlord enter without notice?)..." onkeydown="if(event.key==='Enter') sendQuestion()">
+              <button class="btn-primary" onclick="sendQuestion()">Ask</button>
+            </div>
+          </div>
+
+          <div class="suggested-questions-panel">
+            <h4 style="margin-bottom: 0.85rem; font-size: 1rem;">💡 Suggested Questions</h4>
+            <div id="suggestedQuestionsList"></div>
+            
+            <h4 style="margin: 1.5rem 0 0.85rem 0; font-size: 1rem;">⚡ "What-If" Scenarios</h4>
+            <button class="suggested-q-btn" onclick="askScenario('What happens if I miss a payment or pay late?')">⚠️ What if I pay late?</button>
+            <button class="suggested-q-btn" onclick="askScenario('What happens if I want to terminate or move out early?')">🚪 What if I terminate early?</button>
+            <button class="suggested-q-btn" onclick="askScenario('Can the other party modify the terms without asking me?')">📝 Can terms be changed unilaterally?</button>
+            <button class="suggested-q-btn" onclick="askScenario('Does the company own side projects I build on weekends?')">💻 Do they own my weekend side projects?</button>
+            <button class="suggested-q-btn" onclick="askScenario('How do I get my deposit back and what deductions are allowed?')">💰 How do I get my deposit back?</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 5: Playbook, Deadlines & Counter Email Generator -->
+      <div id="pane-playbook" class="feature-pane">
+        <div class="playbook-grid">
+          <!-- Left: Deadlines & Checklist -->
+          <div>
+            <div class="intake-card" style="padding: 1.75rem; margin-bottom: 1.75rem;">
+              <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.85rem;">📅 Notice Deadlines & Key Obligations</h3>
+              <div id="deadlinesList"></div>
+            </div>
+
+            <div class="intake-card" style="padding: 1.75rem;">
+              <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.85rem;">✅ Pre-Signature Diligence Checklist</h3>
+              <div id="checklistContainer"></div>
+            </div>
+          </div>
+
+          <!-- Right: Negotiation Email Generator -->
+          <div class="intake-card" style="padding: 1.75rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.4rem;">✉️ Negotiation Counter-Email Drafter</h3>
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">Generate a polite, professional counter-proposal email with balanced alternative language.</p>
+            
+            <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">RECIPIENT ROLE:</label>
+            <select id="emailRecipientRole" style="width: 100%; padding: 0.6rem; margin: 0.35rem 0 0.85rem 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.92rem;">
+              <option value="Landlord / Property Manager">Landlord / Property Manager</option>
+              <option value="Client / Procurement Team">Client / Procurement Team</option>
+              <option value="Hiring Manager / HR">Hiring Manager / HR</option>
+              <option value="Vendor / Counterparty Counsel">Vendor / Counterparty Counsel</option>
+            </select>
+
+            <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">SELECT CLAUSES TO NEGOTIATE:</label>
+            <div id="emailClausesSelector" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.6rem; margin: 0.35rem 0 0.85rem 0; font-size: 0.88rem;"></div>
+
+            <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">DESIRED TONE:</label>
+            <select id="emailTone" style="width: 100%; padding: 0.6rem; margin: 0.35rem 0 1.25rem 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.92rem;">
+              <option value="Collaborative & Friendly">Collaborative & Friendly (Recommended)</option>
+              <option value="Professional & Direct">Professional & Direct</option>
+              <option value="Firm & Formal">Firm & Formal</option>
+            </select>
+
+            <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="generateCounterEmail()">
+              <span>📝 Draft Counter-Proposal Email</span>
+            </button>
+
+            <div id="emailOutputBox" style="display: none; margin-top: 1.5rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <span style="font-weight: 800; font-size: 0.92rem;">Generated Email Draft</span>
+                <button class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;" onclick="copyEmailDraft()">📋 Copy Email</button>
+              </div>
+              <input type="text" id="emailDraftSubject" style="width: 100%; padding: 0.55rem; font-size: 0.9rem; font-weight: 700; border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 0.5rem;" readonly>
+              <textarea id="emailDraftBody" class="text-input-area" style="min-height: 220px; font-size: 0.9rem;" readonly></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 6: Attorney Consultation Dossier -->
+      <div id="pane-attorney" class="feature-pane">
+        <div class="dossier-preview">
+          <div class="dossier-header-bar">
+            <button class="btn-secondary" onclick="copyDossierMarkdown()">📋 Copy as Markdown</button>
+            <button class="btn-primary" onclick="window.print()">🖨️ Print / Save as PDF</button>
+          </div>
+          <div id="dossierContent" style="white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.9rem; line-height: 1.7; color: var(--text-primary);"></div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ AI Engine & API Key Configuration</h3>
+        <button class="btn-close" onclick="closeSettings()">&times;</button>
+      </div>
+      <div style="font-size: 0.92rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+        JurisClear AI operates in two high-performance modes:
+        <ul style="margin: 0.5rem 0 0.85rem 1.25rem; font-size: 0.88rem;">
+          <li><strong>Gemini 3.8 Flash:</strong> Uses Google's state-of-the-art model for deep multimodal understanding and nuanced legal reasoning.</li>
+          <li><strong>Built-in Legal Intelligence Engine:</strong> High-precision offline rule & AST parser that provides immediate analysis without an API key.</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 1.25rem;">
+        <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.35rem;">GEMINI API KEY:</label>
+        <input type="password" id="geminiApiKeyInput" placeholder="AQ... or AIzaSy..." style="width: 100%; padding: 0.7rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.92rem;">
+        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem;">Stored locally in your browser. Leave blank to use the Built-in Intelligence Engine.</div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.75rem;">
+        <button class="btn-secondary" onclick="clearApiKey()">Remove Key</button>
+        <button class="btn-primary" onclick="saveApiKey()">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <p>© 2026 JurisClear AI — Built with Google Gemini 3.8 Flash. Designed to make legal agreements transparent, accessible, and negotiable for everyone.</p>
+    <p style="margin-top: 0.4rem; font-size: 0.8rem;">Disclaimer: JurisClear AI is an educational assistance platform and does not provide legal advice or form an attorney-client relationship.</p>
+  </footer>
+
+  <script src="/static/app.js?v=3.1"></script>
+</body>
+</html>
