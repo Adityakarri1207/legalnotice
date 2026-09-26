@@ -38,8 +38,21 @@ function showToast(message, type = "success") {
   
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
-  toast.innerHTML = `<span>${type === 'success' ? '✅' : 'ℹ️'}</span> <span>${message}</span>`;
+  toast.setAttribute("role", "status");
+  
+  const iconSpan = document.createElement("span");
+  iconSpan.textContent = type === 'success' ? '✅' : 'ℹ️';
+  iconSpan.setAttribute("aria-hidden", "true");
+
+  const msgSpan = document.createElement("span");
+  msgSpan.textContent = message;
+
+  toast.appendChild(iconSpan);
+  toast.appendChild(document.createTextNode(" "));
+  toast.appendChild(msgSpan);
   container.appendChild(toast);
+
+  announceToScreenReader(message);
 
   setTimeout(() => {
     toast.style.opacity = "0";
@@ -72,17 +85,26 @@ function updateEngineBadge(text) {
 // Mode Switcher (Single vs Compare)
 function switchMode(mode) {
   state.activeMode = mode;
-  document.getElementById("modeSingleBtn").classList.toggle("active", mode === "single");
-  document.getElementById("modeCompareBtn").classList.toggle("active", mode === "compare");
+  const singleBtn = document.getElementById("modeSingleBtn");
+  const compareBtn = document.getElementById("modeCompareBtn");
+  singleBtn.classList.toggle("active", mode === "single");
+  singleBtn.setAttribute("aria-pressed", mode === "single");
+  compareBtn.classList.toggle("active", mode === "compare");
+  compareBtn.setAttribute("aria-pressed", mode === "compare");
   document.getElementById("singleIntakeMode").style.display = mode === "single" ? "block" : "none";
   document.getElementById("compareIntakeMode").style.display = mode === "compare" ? "block" : "none";
+  announceToScreenReader(mode === "single" ? "Switched to single document analysis mode" : "Switched to dual contract comparison mode");
 }
 
 // Input tab switcher (Upload vs Paste)
 function switchInputTab(tab) {
   state.activeInputTab = tab;
-  document.getElementById("tabUploadBtn").classList.toggle("active", tab === "upload");
-  document.getElementById("tabPasteBtn").classList.toggle("active", tab === "paste");
+  const uploadBtn = document.getElementById("tabUploadBtn");
+  const pasteBtn = document.getElementById("tabPasteBtn");
+  uploadBtn.classList.toggle("active", tab === "upload");
+  uploadBtn.setAttribute("aria-selected", tab === "upload");
+  pasteBtn.classList.toggle("active", tab === "paste");
+  pasteBtn.setAttribute("aria-selected", tab === "paste");
   document.getElementById("uploadView").style.display = tab === "upload" ? "block" : "none";
   document.getElementById("pasteView").style.display = tab === "paste" ? "block" : "none";
 }
@@ -133,7 +155,7 @@ function handleFileSelect(event) {
 async function uploadFile(file) {
   const statusDiv = document.getElementById("fileUploadStatus");
   statusDiv.style.display = "block";
-  statusDiv.innerHTML = `<span>⏳ Uploading and extracting text from <strong>${file.name}</strong>...</span>`;
+  statusDiv.innerHTML = `<span>⏳ Uploading and extracting text from <strong>${escapeHtml(file.name)}</strong>...</span>`;
 
   const formData = new FormData();
   formData.append("file", file);
@@ -158,13 +180,13 @@ async function uploadFile(file) {
     document.getElementById("pasteDocText").value = data.text_preview;
     document.getElementById("pasteDocText").dispatchEvent(new Event("input"));
     
-    statusDiv.innerHTML = `<span>✅ Extracted <strong>${data.word_count.toLocaleString()} words</strong> from <strong>${data.filename}</strong>!</span>`;
+    statusDiv.innerHTML = `<span>✅ Extracted <strong>${data.word_count.toLocaleString()} words</strong> from <strong>${escapeHtml(data.filename)}</strong>!</span>`;
     showToast(`Loaded ${data.filename} (${data.word_count} words)`, "success");
     
     // Auto start analysis
     startAnalysis();
   } catch (err) {
-    statusDiv.innerHTML = `<span style="color: var(--risk-critical);">❌ Error: ${err.message}</span>`;
+    statusDiv.innerHTML = `<span style="color: var(--risk-critical);">❌ Error: ${escapeHtml(err.message)}</span>`;
     showToast(`Error: ${err.message}`, "warning");
   }
 }
@@ -907,7 +929,7 @@ function renderClauseDiffs(differences, fallbackDiffs, nameA, nameB) {
       contentHtml = `
         <div class="redline-markup-box">
           <div style="font-size: 0.76rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase;">Inline Redline (Word-for-Word Divergence):</div>
-          <div>${d.redline_html}</div>
+          <div>${sanitizeRedlineHtml(d.redline_html)}</div>
         </div>
       `;
     }
@@ -1034,7 +1056,7 @@ function bridgeDiffToNegotiationEmail() {
       div.style.marginBottom = "0.4rem";
       div.innerHTML = `
         <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-          <input type="checkbox" value="${escapeHtml(title)}" checked>
+          <input type="checkbox" value="${escapeHtml(title)}" aria-label="${escapeHtml(title)}" checked>
           <span>${escapeHtml(title)}</span>
         </label>
       `;
@@ -1130,7 +1152,7 @@ async function sendQuestion() {
     chatHistory.scrollTop = chatHistory.scrollHeight;
 
   } catch (err) {
-    botMsg.innerHTML = `<span style="color: var(--risk-critical);">Error getting answer: ${err.message}</span>`;
+    botMsg.innerHTML = `<span style="color: var(--risk-critical);">Error getting answer: ${escapeHtml(err.message)}</span>`;
   }
 }
 
@@ -1157,8 +1179,8 @@ function renderPlaybook(deadlines, checklist, clauses) {
     const div = document.createElement("div");
     div.className = "checklist-item";
     div.innerHTML = `
-      <input type="checkbox" id="chk-${idx}" onchange="toggleCheck(this)">
-      <label for="chk-${idx}" style="cursor: pointer;">${escapeHtml(item.task)} <span class="detail-label" style="margin-left: 0.4rem;">[${item.category}]</span></label>
+      <input type="checkbox" id="chk-${idx}" aria-label="${escapeHtml(item.task)}" onchange="toggleCheck(this)">
+      <label for="chk-${idx}" style="cursor: pointer;">${escapeHtml(item.task)} <span class="detail-label" style="margin-left: 0.4rem;">[${escapeHtml(item.category)}]</span></label>
     `;
     checklistContainer.appendChild(div);
   });
@@ -1174,7 +1196,7 @@ function renderPlaybook(deadlines, checklist, clauses) {
     div.style.marginBottom = "0.4rem";
     div.innerHTML = `
       <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-        <input type="checkbox" value="${escapeHtml(c.section_title)}" checked>
+        <input type="checkbox" value="${escapeHtml(c.section_title)}" aria-label="${escapeHtml(c.section_title)}" checked>
         <span>${escapeHtml(c.section_title)}</span>
       </label>
     `;
@@ -1258,20 +1280,47 @@ function copyDossierMarkdown() {
 
 // Feature Tab Switcher
 function switchFeatureTab(tabName) {
-  document.querySelectorAll(".feature-tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".feature-tab-btn").forEach(b => {
+    b.classList.remove("active");
+    b.setAttribute("aria-selected", "false");
+  });
   document.querySelectorAll(".feature-pane").forEach(p => p.classList.remove("active"));
 
   const targetPane = document.getElementById(`pane-${tabName}`);
   if (targetPane) targetPane.classList.add("active");
 
-  const activeBtn = Array.from(document.querySelectorAll(".feature-tab-btn")).find(b => b.onclick && b.onclick.toString().includes(tabName));
-  if (activeBtn) activeBtn.classList.add("active");
+  const activeBtn = document.getElementById(`tab-${tabName}`) || 
+    Array.from(document.querySelectorAll(".feature-tab-btn")).find(b => b.onclick && b.onclick.toString().includes(tabName));
+  if (activeBtn) {
+    activeBtn.classList.add("active");
+    activeBtn.setAttribute("aria-selected", "true");
+  }
 }
 
 // Settings Modal
 const settingsModal = document.getElementById("settingsModal");
-document.getElementById("btnOpenSettings").onclick = () => settingsModal.classList.add("active");
-function closeSettings() { settingsModal.classList.remove("active"); }
+document.getElementById("btnOpenSettings").onclick = () => openSettings();
+function openSettings() {
+  if (settingsModal) {
+    settingsModal.classList.add("active");
+    const input = document.getElementById("geminiApiKeyInput");
+    if (input) setTimeout(() => input.focus(), 100);
+  }
+}
+function closeSettings() {
+  if (settingsModal) {
+    settingsModal.classList.remove("active");
+    const btn = document.getElementById("btnOpenSettings");
+    if (btn) btn.focus();
+  }
+}
+
+// Keyboard modal listener (Escape closes dialog)
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && settingsModal && settingsModal.classList.contains("active")) {
+    closeSettings();
+  }
+});
 
 function saveApiKey() {
   const key = document.getElementById("geminiApiKeyInput").value.trim();
@@ -1320,7 +1369,7 @@ function fallbackCopy(text, successMsg) {
 
 function escapeHtml(str) {
   if (!str) return "";
-  return str
+  return String(str)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -1330,5 +1379,42 @@ function escapeHtml(str) {
 
 function escapeJsString(str) {
   if (!str) return "";
-  return str.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, " ");
+  return String(str).replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, " ");
+}
+
+// Screen reader live status announcements (WCAG 4.1.3)
+function announceToScreenReader(message) {
+  const announcer = document.getElementById("liveAnnouncer");
+  if (announcer) {
+    announcer.textContent = "";
+    setTimeout(() => {
+      announcer.textContent = message;
+    }, 50);
+  }
+}
+
+// Secure HTML Sanitizer for redline markup (defense-in-depth against XSS)
+function sanitizeRedlineHtml(html) {
+  if (!html) return "";
+  const temp = document.createElement("div");
+  temp.innerHTML = html;
+  
+  const allElements = temp.querySelectorAll("*");
+  allElements.forEach(el => {
+    const tag = el.tagName.toLowerCase();
+    if (!["ins", "del", "span", "strong", "em", "br", "p", "div", "b", "i", "mark", "code"].includes(tag)) {
+      el.replaceWith(...el.childNodes);
+      return;
+    }
+    // Retain only safe class attributes for diff highlighting
+    Array.from(el.attributes).forEach(attr => {
+      if (attr.name === "class") {
+        const safeClasses = attr.value.split(/\s+/).filter(c => /^[a-zA-Z0-9_\-]+$/.test(c));
+        el.className = safeClasses.join(" ");
+      } else {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+  return temp.innerHTML;
 }

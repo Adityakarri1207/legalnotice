@@ -31,8 +31,9 @@ from app.analyzer import (
 
 logger = logging.getLogger(__name__)
 
-# Use gemini-2.5-flash for maximum speed, accuracy, and high quota
-PRIMARY_MODEL = "gemini-2.5-flash"
+# Primary model and resilient fallback models
+PRIMARY_MODEL = "gemini-3.8-flash"
+FALLBACK_MODELS = ["gemini-2.5-flash"]
 
 def get_client(api_key: Optional[str] = None) -> Optional[genai.Client]:
     """Retrieves or creates a genai Client if an API key is available."""
@@ -65,9 +66,10 @@ async def generate_with_retry_async(
 ):
     """
     Executes model generation in a background thread with an async timeout.
-    Uses gemini-2.5-flash, seamlessly falling back to the local engine on timeout/error.
+    Uses gemini-2.5-flash with cascade to gemini-2.0-flash / gemini-1.5-flash,
+    seamlessly falling back to the local engine on timeout/error.
     """
-    models_to_try = [PRIMARY_MODEL]
+    models_to_try = [PRIMARY_MODEL] + FALLBACK_MODELS
     last_err = None
 
     def _sync_generate(m_name: str):

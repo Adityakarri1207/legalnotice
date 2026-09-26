@@ -3,16 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="JurisClear AI — GenAI Legal Intelligence & Accessibility Platform. Plain-English contract translation, gotcha detection, and smart redline comparison.">
   <title>JurisClear AI — GenAI Legal Intelligence & Accessibility Platform</title>
   <link rel="stylesheet" href="/static/styles.css?v=3.1">
 </head>
 <body>
 
+  <!-- Screen Reader Live Announcer (WCAG 4.1.3 Status Messages) -->
+  <div id="liveAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Accessible Skip Link (WCAG 2.4.1 Bypass Blocks) -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
   <!-- Top Application Header -->
-  <header class="app-header">
+  <header class="app-header" role="banner">
     <div class="header-inner">
       <div class="brand-section">
-        <div class="brand-icon-wrapper">⚖️</div>
+        <div class="brand-icon-wrapper" aria-hidden="true">⚖️</div>
         <div>
           <div class="brand-logo">JurisClear AI</div>
           <div class="brand-subtitle">GenAI Legal Intelligence & Accessibility Platform</div>
@@ -21,7 +28,7 @@
       <div class="header-actions">
         <span id="engineBadge" class="badge badge-active-ai">⚡ Gemini Active</span>
         <span class="badge badge-disclaimer">🛡️ Legal Info & Assistance</span>
-        <button id="btnOpenSettings" class="btn-secondary" title="Configure API Keys">
+        <button id="btnOpenSettings" class="btn-secondary" title="Configure API Keys" aria-label="Configure API Keys and AI Engine settings" onclick="openSettings()">
           ⚙️ Settings
         </button>
       </div>
@@ -29,16 +36,17 @@
   </header>
 
   <!-- Main App Container -->
-  <main class="main-container">
+  <main id="main-content" class="main-container" role="main">
 
     <!-- Legal Disclaimer Banner -->
-    <div class="disclaimer-banner">
-      <span style="font-size: 1.2rem;">🛡️</span>
+    <div class="disclaimer-banner" role="note" aria-label="Educational legal disclaimer">
+      <span style="font-size: 1.2rem;" aria-hidden="true">🛡️</span>
       <span><strong>Educational Notice:</strong> JurisClear AI provides automated legal information, document navigation, and plain-English translation to help non-lawyers understand their contracts. It does not replace professional legal advice or create an attorney-client relationship.</span>
     </div>
 
     <!-- 3-Step Visual Onboarding Stepper -->
-    <div class="workflow-stepper">
+    <div class="workflow-stepper" role="region" aria-label="Platform workflow guide">
+
       <div class="step-card">
         <div class="step-number">1</div>
         <div class="step-text">
@@ -63,51 +71,54 @@
     </div>
 
     <!-- Intake & Input Card -->
-    <section class="intake-card">
+    <section class="intake-card" aria-labelledby="intakeHeading">
       <div class="intake-header">
-        <h1 class="intake-title">Understand, Compare, and Navigate Legal Contracts</h1>
+        <h1 id="intakeHeading" class="intake-title">Understand, Compare, and Navigate Legal Contracts</h1>
         <p class="intake-desc">Decode convoluted legalese into plain human terms, expose hidden traps, calculate favorability shifts, and prepare targeted questions for your lawyer.</p>
       </div>
 
       <!-- Mode Switcher -->
-      <div class="intake-mode-switcher">
-        <button id="modeSingleBtn" class="mode-btn active" onclick="switchMode('single')">📄 Analyze Single Document</button>
-        <button id="modeCompareBtn" class="mode-btn" onclick="switchMode('compare')">⚖️ Compare Two Contracts (Redline Diff)</button>
+      <div class="intake-mode-switcher" role="group" aria-label="Analysis Mode Selection">
+        <button id="modeSingleBtn" class="mode-btn active" aria-pressed="true" onclick="switchMode('single')">📄 Analyze Single Document</button>
+        <button id="modeCompareBtn" class="mode-btn" aria-pressed="false" onclick="switchMode('compare')">⚖️ Compare Two Contracts (Redline Diff)</button>
       </div>
 
       <!-- Quick Test Drive Samples Bar -->
-      <div class="samples-bar">
-        <span class="samples-label">⚡ Instant Test Drives:</span>
-        <button class="sample-pill" onclick="loadSample('residential_lease')">🏠 Austin Apartment Lease (Auto-Renewal Traps)</button>
-        <button class="sample-pill" onclick="loadSample('freelance_software')">💻 Freelance Dev Contract (IP Grab & Unlimited Liability)</button>
-        <button class="sample-pill" onclick="loadSample('mutual_nda')">🤝 Mutual NDA (Balanced Standard)</button>
-        <button class="sample-pill" onclick="loadSample('unilateral_nda_aggressive')">⚠️ Aggressive Vendor NDA (Perpetual $250k Penalty)</button>
-        <button class="sample-pill" onclick="loadSample('employment_offer')">👔 Executive Employment (Bonus Clawback & Moonlighting)</button>
+      <div class="samples-bar" role="region" aria-label="Pre-loaded realistic sample contracts">
+        <span class="samples-label" id="samplesLabel">⚡ Instant Test Drives:</span>
+        <button class="sample-pill" aria-label="Load Austin Apartment Lease sample contract" onclick="loadSample('residential_lease')">🏠 Austin Apartment Lease (Auto-Renewal Traps)</button>
+        <button class="sample-pill" aria-label="Load Freelance Dev Contract sample contract" onclick="loadSample('freelance_software')">💻 Freelance Dev Contract (IP Grab & Unlimited Liability)</button>
+        <button class="sample-pill" aria-label="Load Mutual NDA sample contract" onclick="loadSample('mutual_nda')">🤝 Mutual NDA (Balanced Standard)</button>
+        <button class="sample-pill" aria-label="Load Aggressive Vendor NDA sample contract" onclick="loadSample('unilateral_nda_aggressive')">⚠️ Aggressive Vendor NDA (Perpetual $250k Penalty)</button>
+        <button class="sample-pill" aria-label="Load Executive Employment contract sample" onclick="loadSample('employment_offer')">👔 Executive Employment (Bonus Clawback & Moonlighting)</button>
       </div>
 
       <!-- Single Document Intake Mode -->
       <div id="singleIntakeMode">
-        <div class="input-tabs">
-          <button id="tabUploadBtn" class="input-tab active" onclick="switchInputTab('upload')">📁 Upload Document (PDF / DOCX / TXT)</button>
-          <button id="tabPasteBtn" class="input-tab" onclick="switchInputTab('paste')">✍️ Paste Contract Text</button>
+        <div class="input-tabs" role="tablist" aria-label="Input Method Selection">
+          <button id="tabUploadBtn" class="input-tab active" role="tab" aria-selected="true" aria-controls="uploadView" onclick="switchInputTab('upload')">📁 Upload Document (PDF / DOCX / TXT)</button>
+          <button id="tabPasteBtn" class="input-tab" role="tab" aria-selected="false" aria-controls="pasteView" onclick="switchInputTab('paste')">✍️ Paste Contract Text</button>
         </div>
 
         <!-- Upload Dropzone View -->
-        <div id="uploadView">
-          <div id="dropzone" class="upload-dropzone" onclick="document.getElementById('fileInput').click()">
-            <div class="upload-icon">📄</div>
+        <div id="uploadView" role="tabpanel" aria-labelledby="tabUploadBtn">
+          <div id="dropzone" class="upload-dropzone" role="button" tabindex="0" aria-label="Upload document dropzone. Drag and drop file here, or press Enter or Space to browse files" onclick="document.getElementById('fileInput').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('fileInput').click();}">
+            <div class="upload-icon" aria-hidden="true">📄</div>
             <div class="upload-text">Click or drag & drop your contract here</div>
             <div class="upload-hint">Supports PDF, Word (.docx), and Plain Text (.txt, .md) — Up to 15MB</div>
-            <input type="file" id="fileInput" style="display: none;" accept=".pdf,.docx,.doc,.txt,.md" onchange="handleFileSelect(event)">
+            <label for="fileInput" class="sr-only">Choose PDF, Word, or Text document to upload</label>
+            <input type="file" id="fileInput" style="display: none;" accept=".pdf,.docx,.doc,.txt,.md" aria-label="Upload document file" onchange="handleFileSelect(event)">
           </div>
-          <div id="fileUploadStatus" style="margin-top: 0.85rem; font-size: 0.92rem; color: var(--primary); display: none;"></div>
+          <div id="fileUploadStatus" style="margin-top: 0.85rem; font-size: 0.92rem; color: var(--primary); display: none;" aria-live="polite"></div>
         </div>
 
         <!-- Paste Text View -->
-        <div id="pasteView" style="display: none;">
-          <input type="text" id="pasteDocTitle" placeholder="Document Title (e.g., Master Services Agreement 2026)" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 0.85rem; font-size: 0.95rem; outline: none;">
-          <textarea id="pasteDocText" class="text-input-area" placeholder="Paste your legal document, lease, NDA, terms of service, or offer letter text here..."></textarea>
-          <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); margin-top: 0.5rem;">
+        <div id="pasteView" role="tabpanel" aria-labelledby="tabPasteBtn" style="display: none;">
+          <label for="pasteDocTitle" class="sr-only">Contract Document Title</label>
+          <input type="text" id="pasteDocTitle" placeholder="Document Title (e.g., Master Services Agreement 2026)" aria-label="Contract Document Title" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 0.85rem; font-size: 0.95rem; outline: none;">
+          <label for="pasteDocText" class="sr-only">Contract Document Text</label>
+          <textarea id="pasteDocText" class="text-input-area" placeholder="Paste your legal document, lease, NDA, terms of service, or offer letter text here..." aria-label="Contract Document Text"></textarea>
+          <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); margin-top: 0.5rem;" aria-live="polite">
             <span id="charCount">0 characters</span>
             <span id="wordCount">0 words</span>
           </div>
@@ -115,7 +126,7 @@
 
         <div class="intake-actions">
           <span style="font-size: 0.85rem; color: var(--text-muted);">🔒 Documents are processed in-memory and never stored on public servers or used for model training.</span>
-          <button id="btnAnalyze" class="btn-primary" onclick="startAnalysis()">
+          <button id="btnAnalyze" class="btn-primary" aria-label="Run deep legal analysis on contract" onclick="startAnalysis()">
             <span>🚀 Run Deep Legal Analysis</span>
           </button>
         </div>
@@ -125,26 +136,28 @@
       <div id="compareIntakeMode" style="display: none;">
         <p style="font-size: 0.92rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
           Upload or paste two agreements to generate a semantic redline comparison, calculating which provisions shifted in favor of or against you.
-          <button class="sample-pill" style="margin-left: 0.5rem;" onclick="loadCompareDemo()">⚡ 1-Click: Load Balanced Mutual NDA vs Aggressive NDA</button>
+          <button class="sample-pill" style="margin-left: 0.5rem;" aria-label="Load demo comparing Mutual NDA versus Aggressive NDA" onclick="loadCompareDemo()">⚡ 1-Click: Load Balanced Mutual NDA vs Aggressive NDA</button>
         </p>
         <div class="compare-grid">
           <div class="compare-col">
             <div class="compare-col-header">
-              <span>Document A (Baseline / Prior Version)</span>
+              <label for="docAName" id="labelDocAName">Document A (Baseline / Prior Version)</label>
             </div>
-            <input type="text" id="docAName" value="Version 1 (Standard Mutual NDA)" style="width: 100%; padding: 0.6rem; margin-bottom: 0.6rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.9rem;">
-            <textarea id="docAText" class="text-input-area" style="min-height: 200px;" placeholder="Paste baseline or standard contract here..."></textarea>
+            <input type="text" id="docAName" value="Version 1 (Standard Mutual NDA)" aria-labelledby="labelDocAName" style="width: 100%; padding: 0.6rem; margin-bottom: 0.6rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.9rem;">
+            <label for="docAText" class="sr-only">Document A Baseline Contract Text</label>
+            <textarea id="docAText" class="text-input-area" style="min-height: 200px;" placeholder="Paste baseline or standard contract here..." aria-label="Document A Baseline Contract Text"></textarea>
           </div>
           <div class="compare-col">
             <div class="compare-col-header">
-              <span>Document B (Revised / Counterparty Proposal)</span>
+              <label for="docBName" id="labelDocBName">Document B (Revised / Counterparty Proposal)</label>
             </div>
-            <input type="text" id="docBName" value="Version 2 (Counterparty Redline)" style="width: 100%; padding: 0.6rem; margin-bottom: 0.6rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.9rem;">
-            <textarea id="docBText" class="text-input-area" style="min-height: 200px;" placeholder="Paste revised or proposed contract here..."></textarea>
+            <input type="text" id="docBName" value="Version 2 (Counterparty Redline)" aria-labelledby="labelDocBName" style="width: 100%; padding: 0.6rem; margin-bottom: 0.6rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.9rem;">
+            <label for="docBText" class="sr-only">Document B Proposed Contract Text</label>
+            <textarea id="docBText" class="text-input-area" style="min-height: 200px;" placeholder="Paste revised or proposed contract here..." aria-label="Document B Proposed Contract Text"></textarea>
           </div>
         </div>
         <div style="display: flex; justify-content: flex-end;">
-          <button id="btnRunCompare" class="btn-primary" onclick="startComparison()">
+          <button id="btnRunCompare" class="btn-primary" aria-label="Compare documents and analyze risk shift" onclick="startComparison()">
             <span>⚖️ Compare Documents & Analyze Risk Shift</span>
           </button>
         </div>
@@ -185,7 +198,9 @@
         <div class="risk-meter-box">
           <div class="detail-label">Overall Risk Index</div>
           <div class="risk-circle-wrapper">
-            <svg class="risk-svg" viewBox="0 0 120 120">
+            <svg class="risk-svg" viewBox="0 0 120 120" role="img" aria-labelledby="riskSvgTitle riskSvgDesc">
+              <title id="riskSvgTitle">Overall Contract Risk Gauge</title>
+              <desc id="riskSvgDesc">Visual meter indicating contract risk score from 0 to 100</desc>
               <circle class="risk-circle-bg" cx="60" cy="60" r="50"></circle>
               <circle id="riskCircleProgress" class="risk-circle-progress" cx="60" cy="60" r="50"></circle>
             </svg>
@@ -287,47 +302,48 @@
       </div>
 
       <!-- Feature Navigation Tabs -->
-      <nav class="feature-nav">
-        <button class="feature-tab-btn active" onclick="switchFeatureTab('simplifier')">
+      <nav class="feature-nav" role="tablist" aria-label="Contract Analysis Modules">
+        <button id="tab-simplifier" class="feature-tab-btn active" role="tab" aria-selected="true" aria-controls="pane-simplifier" onclick="switchFeatureTab('simplifier')">
           <span>📖 Plain-English Simplifier</span>
         </button>
-        <button class="feature-tab-btn" onclick="switchFeatureTab('radar')">
+        <button id="tab-radar" class="feature-tab-btn" role="tab" aria-selected="false" aria-controls="pane-radar" onclick="switchFeatureTab('radar')">
           <span>🚨 Risk Radar & Gotchas (<span id="tabRiskCount">0</span>)</span>
         </button>
-        <button class="feature-tab-btn" onclick="switchFeatureTab('diff')">
+        <button id="tab-diff" class="feature-tab-btn" role="tab" aria-selected="false" aria-controls="pane-diff" onclick="switchFeatureTab('diff')">
           <span>⚖️ Contract Diff & Redline</span>
         </button>
-        <button class="feature-tab-btn" onclick="switchFeatureTab('qa')">
+        <button id="tab-qa" class="feature-tab-btn" role="tab" aria-selected="false" aria-controls="pane-qa" onclick="switchFeatureTab('qa')">
           <span>💬 Grounded Q&A & Scenarios</span>
         </button>
-        <button class="feature-tab-btn" onclick="switchFeatureTab('playbook')">
+        <button id="tab-playbook" class="feature-tab-btn" role="tab" aria-selected="false" aria-controls="pane-playbook" onclick="switchFeatureTab('playbook')">
           <span>📅 Action Playbook & Deadlines</span>
         </button>
-        <button class="feature-tab-btn" onclick="switchFeatureTab('attorney')">
+        <button id="tab-attorney" class="feature-tab-btn" role="tab" aria-selected="false" aria-controls="pane-attorney" onclick="switchFeatureTab('attorney')">
           <span>💼 Lawyer Consultation Dossier</span>
         </button>
       </nav>
 
       <!-- TAB 1: Simplifier (Split Screen & 3D Card Flip Mode) -->
-      <div id="pane-simplifier" class="feature-pane active">
+      <div id="pane-simplifier" class="feature-pane active" role="tabpanel" tabindex="0" aria-labelledby="tab-simplifier">
         <div class="simplifier-controls">
           <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-            <div class="view-mode-switch">
-              <button id="viewSplitBtn" class="view-mode-btn active" onclick="switchSimplifierView('split')">📑 Split-Screen Reader</button>
-              <button id="viewFlipBtn" class="view-mode-btn" onclick="switchSimplifierView('flip')">🃏 3D Interactive Flip-Cards</button>
+            <div class="view-mode-switch" role="group" aria-label="Simplifier View Mode">
+              <button id="viewSplitBtn" class="view-mode-btn active" aria-pressed="true" onclick="switchSimplifierView('split')">📑 Split-Screen Reader</button>
+              <button id="viewFlipBtn" class="view-mode-btn" aria-pressed="false" onclick="switchSimplifierView('flip')">🃏 3D Interactive Flip-Cards</button>
             </div>
-            <input type="text" id="clauseSearchInput" class="clause-search-input" placeholder="🔍 Search clauses or terms..." oninput="handleClauseSearch()">
+            <label for="clauseSearchInput" class="sr-only">Search clauses or legal terms</label>
+            <input type="text" id="clauseSearchInput" class="clause-search-input" placeholder="🔍 Search clauses or terms..." aria-label="Search clauses or legal terms" oninput="handleClauseSearch()">
           </div>
 
-          <div class="reading-level-switch">
-            <button id="lvlEli5" class="reading-btn active" onclick="setReadingLevel('eli5')">👶 ELI5 / Everyday Human</button>
-            <button id="lvlPractical" class="reading-btn" onclick="setReadingLevel('practical')">⚖️ Balanced / Practical</button>
-            <button id="lvlBusiness" class="reading-btn" onclick="setReadingLevel('business')">💼 Strategic / Business</button>
+          <div class="reading-level-switch" role="group" aria-label="Reading Comprehension Tier">
+            <button id="lvlEli5" class="reading-btn active" aria-pressed="true" onclick="setReadingLevel('eli5')">👶 ELI5 / Everyday Human</button>
+            <button id="lvlPractical" class="reading-btn" aria-pressed="false" onclick="setReadingLevel('practical')">⚖️ Balanced / Practical</button>
+            <button id="lvlBusiness" class="reading-btn" aria-pressed="false" onclick="setReadingLevel('business')">💼 Strategic / Business</button>
           </div>
         </div>
 
         <!-- Category Filters -->
-        <div id="clauseCategoryFilters" class="category-filter-bar"></div>
+        <div id="clauseCategoryFilters" class="category-filter-bar" role="region" aria-label="Clause category filters"></div>
 
         <!-- Mode A: Split View -->
         <div id="splitViewContainer" class="split-view-container">
@@ -352,32 +368,32 @@
       </div>
 
       <!-- TAB 2: Risk Radar -->
-      <div id="pane-radar" class="feature-pane">
-        <div class="category-filter-bar" style="margin-bottom: 1.5rem;">
-          <button class="filter-chip active" onclick="filterRisks('all')">All Provisions</button>
-          <button class="filter-chip" onclick="filterRisks('critical')">🚨 Critical Traps Only</button>
-          <button class="filter-chip" onclick="filterRisks('warning')">⚠️ Cautionary Warnings</button>
-          <button class="filter-chip" onclick="filterRisks('safe')">✅ Fair & Balanced Clauses</button>
+      <div id="pane-radar" class="feature-pane" role="tabpanel" tabindex="0" aria-labelledby="tab-radar">
+        <div class="category-filter-bar" style="margin-bottom: 1.5rem;" role="group" aria-label="Risk severity filters">
+          <button class="filter-chip active" aria-pressed="true" onclick="filterRisks('all')">All Provisions</button>
+          <button class="filter-chip" aria-pressed="false" onclick="filterRisks('critical')">🚨 Critical Traps Only</button>
+          <button class="filter-chip" aria-pressed="false" onclick="filterRisks('warning')">⚠️ Cautionary Warnings</button>
+          <button class="filter-chip" aria-pressed="false" onclick="filterRisks('safe')">✅ Fair & Balanced Clauses</button>
         </div>
         <div id="riskCardsContainer"></div>
       </div>
 
       <!-- TAB 3: Contract Diff & Redline -->
-      <div id="pane-diff" class="feature-pane">
+      <div id="pane-diff" class="feature-pane" role="tabpanel" tabindex="0" aria-labelledby="tab-diff">
         <div id="diffResultsContainer">
           <!-- Diff Sub-Navigation Bar -->
           <div class="diff-subnav-bar">
-            <div class="diff-filter-chips">
-              <button id="diffSubTabAll" class="diff-filter-chip active" onclick="filterDiffSubView('all')">
+            <div class="diff-filter-chips" role="group" aria-label="Contract diff views">
+              <button id="diffSubTabAll" class="diff-filter-chip active" aria-pressed="true" onclick="filterDiffSubView('all')">
                 <span>⚖️ All Changes (<span id="countDiffAll">0</span>)</span>
               </button>
-              <button id="diffSubTabSims" class="diff-filter-chip" onclick="filterDiffSubView('sims')">
+              <button id="diffSubTabSims" class="diff-filter-chip" aria-pressed="false" onclick="filterDiffSubView('sims')">
                 <span>🟢 Similarities & Common Ground (<span id="countDiffSims">0</span>)</span>
               </button>
-              <button id="diffSubTabCritical" class="diff-filter-chip" onclick="filterDiffSubView('critical')">
+              <button id="diffSubTabCritical" class="diff-filter-chip" aria-pressed="false" onclick="filterDiffSubView('critical')">
                 <span>🚨 Critical Traps (<span id="countDiffCritical">0</span>)</span>
               </button>
-              <button id="diffSubTabPlaybook" class="diff-filter-chip" onclick="filterDiffSubView('playbook')">
+              <button id="diffSubTabPlaybook" class="diff-filter-chip" aria-pressed="false" onclick="filterDiffSubView('playbook')">
                 <span>📋 Negotiation Playbook (<span id="countDiffPlaybook">0</span>)</span>
               </button>
             </div>
@@ -385,9 +401,9 @@
             <!-- View Toggle: Inline Redline vs Side-by-Side Columns -->
             <div class="redline-view-mode-toggle">
               <span style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">REDLINE VIEW:</span>
-              <div class="view-mode-switch">
-                <button id="redlineInlineBtn" class="view-mode-btn active" onclick="setRedlineDisplayMode('inline')">Inline Redline</button>
-                <button id="redlineSideBtn" class="view-mode-btn" onclick="setRedlineDisplayMode('side')">Side-by-Side Split</button>
+              <div class="view-mode-switch" role="group" aria-label="Redline display style">
+                <button id="redlineInlineBtn" class="view-mode-btn active" aria-pressed="true" onclick="setRedlineDisplayMode('inline')">Inline Redline</button>
+                <button id="redlineSideBtn" class="view-mode-btn" aria-pressed="false" onclick="setRedlineDisplayMode('side')">Side-by-Side Split</button>
               </div>
             </div>
           </div>
@@ -432,7 +448,7 @@
                   <h3 style="font-size: 1.15rem; font-weight: 800;">📋 Tactical Rebalancing Playbook</h3>
                   <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.25rem;">Step-by-step counter-proposals to reconcile Document B back to the balanced standard of Document A.</p>
                 </div>
-                <button class="btn-primary" onclick="bridgeDiffToNegotiationEmail()">
+                <button class="btn-primary" aria-label="Populate counter proposal email drafter" onclick="bridgeDiffToNegotiationEmail()">
                   <span>✉️ Populate Counter-Proposal Email Drafter</span>
                 </button>
               </div>
@@ -443,22 +459,23 @@
       </div>
 
       <!-- TAB 4: Grounded Q&A & Scenarios -->
-      <div id="pane-qa" class="feature-pane">
+      <div id="pane-qa" class="feature-pane" role="tabpanel" tabindex="0" aria-labelledby="tab-qa">
         <div class="qa-layout">
-          <div class="chat-box">
-            <div id="chatHistory" class="chat-history">
+          <div class="chat-box" role="region" aria-label="Interactive Legal Q&A Chat">
+            <div id="chatHistory" class="chat-history" aria-live="polite">
               <div class="chat-msg assistant">
                 <strong>JurisClear Legal Copilot:</strong>
                 I have indexed your document. Ask any question about your rights, payment terms, cancellation rules, or liabilities. Every answer is grounded directly in the text with section citations.
               </div>
             </div>
             <div class="chat-input-bar">
-              <input type="text" id="chatInput" class="chat-input" placeholder="Ask a question (e.g. Can my landlord enter without notice?)..." onkeydown="if(event.key==='Enter') sendQuestion()">
-              <button class="btn-primary" onclick="sendQuestion()">Ask</button>
+              <label for="chatInput" class="sr-only">Ask a question about the contract</label>
+              <input type="text" id="chatInput" class="chat-input" placeholder="Ask a question (e.g. Can my landlord enter without notice?)..." aria-label="Ask a question about the contract" onkeydown="if(event.key==='Enter') sendQuestion()">
+              <button class="btn-primary" aria-label="Submit question to legal copilot" onclick="sendQuestion()">Ask</button>
             </div>
           </div>
 
-          <div class="suggested-questions-panel">
+          <div class="suggested-questions-panel" role="region" aria-label="Suggested questions and scenarios">
             <h4 style="margin-bottom: 0.85rem; font-size: 1rem;">💡 Suggested Questions</h4>
             <div id="suggestedQuestionsList"></div>
             
@@ -473,13 +490,13 @@
       </div>
 
       <!-- TAB 5: Playbook, Deadlines & Counter Email Generator -->
-      <div id="pane-playbook" class="feature-pane">
+      <div id="pane-playbook" class="feature-pane" role="tabpanel" tabindex="0" aria-labelledby="tab-playbook">
         <div class="playbook-grid">
           <!-- Left: Deadlines & Checklist -->
           <div>
             <div class="intake-card" style="padding: 1.75rem; margin-bottom: 1.75rem;">
               <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.85rem;">📅 Notice Deadlines & Key Obligations</h3>
-              <div id="deadlinesList"></div>
+              <div id="deadlinesList" aria-live="polite"></div>
             </div>
 
             <div class="intake-card" style="padding: 1.75rem;">
@@ -493,48 +510,50 @@
             <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.4rem;">✉️ Negotiation Counter-Email Drafter</h3>
             <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">Generate a polite, professional counter-proposal email with balanced alternative language.</p>
             
-            <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">RECIPIENT ROLE:</label>
-            <select id="emailRecipientRole" style="width: 100%; padding: 0.6rem; margin: 0.35rem 0 0.85rem 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.92rem;">
+            <label for="emailRecipientRole" id="labelEmailRecipientRole" style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">RECIPIENT ROLE:</label>
+            <select id="emailRecipientRole" aria-labelledby="labelEmailRecipientRole" style="width: 100%; padding: 0.6rem; margin: 0.35rem 0 0.85rem 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.92rem;">
               <option value="Landlord / Property Manager">Landlord / Property Manager</option>
               <option value="Client / Procurement Team">Client / Procurement Team</option>
               <option value="Hiring Manager / HR">Hiring Manager / HR</option>
               <option value="Vendor / Counterparty Counsel">Vendor / Counterparty Counsel</option>
             </select>
 
-            <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">SELECT CLAUSES TO NEGOTIATE:</label>
-            <div id="emailClausesSelector" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.6rem; margin: 0.35rem 0 0.85rem 0; font-size: 0.88rem;"></div>
+            <label id="labelEmailClausesSelector" style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">SELECT CLAUSES TO NEGOTIATE:</label>
+            <div id="emailClausesSelector" role="group" aria-labelledby="labelEmailClausesSelector" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.6rem; margin: 0.35rem 0 0.85rem 0; font-size: 0.88rem;"></div>
 
-            <label style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">DESIRED TONE:</label>
-            <select id="emailTone" style="width: 100%; padding: 0.6rem; margin: 0.35rem 0 1.25rem 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.92rem;">
+            <label for="emailTone" id="labelEmailTone" style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">DESIRED TONE:</label>
+            <select id="emailTone" aria-labelledby="labelEmailTone" style="width: 100%; padding: 0.6rem; margin: 0.35rem 0 1.25rem 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.92rem;">
               <option value="Collaborative & Friendly">Collaborative & Friendly (Recommended)</option>
               <option value="Professional & Direct">Professional & Direct</option>
               <option value="Firm & Formal">Firm & Formal</option>
             </select>
 
-            <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="generateCounterEmail()">
+            <button class="btn-primary" style="width: 100%; justify-content: center;" aria-label="Draft counter-proposal email" onclick="generateCounterEmail()">
               <span>📝 Draft Counter-Proposal Email</span>
             </button>
 
-            <div id="emailOutputBox" style="display: none; margin-top: 1.5rem;">
+            <div id="emailOutputBox" style="display: none; margin-top: 1.5rem;" aria-live="polite">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                 <span style="font-weight: 800; font-size: 0.92rem;">Generated Email Draft</span>
-                <button class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;" onclick="copyEmailDraft()">📋 Copy Email</button>
+                <button class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;" aria-label="Copy generated email to clipboard" onclick="copyEmailDraft()">📋 Copy Email</button>
               </div>
-              <input type="text" id="emailDraftSubject" style="width: 100%; padding: 0.55rem; font-size: 0.9rem; font-weight: 700; border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 0.5rem;" readonly>
-              <textarea id="emailDraftBody" class="text-input-area" style="min-height: 220px; font-size: 0.9rem;" readonly></textarea>
+              <label for="emailDraftSubject" class="sr-only">Draft Email Subject</label>
+              <input type="text" id="emailDraftSubject" placeholder="Email Subject" aria-label="Draft Email Subject" style="width: 100%; padding: 0.55rem; font-size: 0.9rem; font-weight: 700; border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 0.5rem;" readonly>
+              <label for="emailDraftBody" class="sr-only">Draft Email Body</label>
+              <textarea id="emailDraftBody" class="text-input-area" placeholder="Email Body" aria-label="Draft Email Body" style="min-height: 220px; font-size: 0.9rem;" readonly></textarea>
             </div>
           </div>
         </div>
       </div>
 
       <!-- TAB 6: Attorney Consultation Dossier -->
-      <div id="pane-attorney" class="feature-pane">
+      <div id="pane-attorney" class="feature-pane" role="tabpanel" tabindex="0" aria-labelledby="tab-attorney">
         <div class="dossier-preview">
           <div class="dossier-header-bar">
-            <button class="btn-secondary" onclick="copyDossierMarkdown()">📋 Copy as Markdown</button>
-            <button class="btn-primary" onclick="window.print()">🖨️ Print / Save as PDF</button>
+            <button class="btn-secondary" aria-label="Copy attorney dossier as Markdown" onclick="copyDossierMarkdown()">📋 Copy as Markdown</button>
+            <button class="btn-primary" aria-label="Print attorney dossier or save as PDF" onclick="window.print()">🖨️ Print / Save as PDF</button>
           </div>
-          <div id="dossierContent" style="white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.9rem; line-height: 1.7; color: var(--text-primary);"></div>
+          <div id="dossierContent" aria-label="Attorney Consultation Dossier content" style="white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.9rem; line-height: 1.7; color: var(--text-primary);"></div>
         </div>
       </div>
 
@@ -542,12 +561,12 @@
 
   </main>
 
-  <!-- Settings Modal -->
-  <div id="settingsModal" class="modal-overlay">
+  <!-- Settings Modal Dialog (WCAG 2.1 Modal Pattern) -->
+  <div id="settingsModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 class="modal-title">⚙️ AI Engine & API Key Configuration</h3>
-        <button class="btn-close" onclick="closeSettings()">&times;</button>
+        <h3 id="settingsModalTitle" class="modal-title">⚙️ AI Engine & API Key Configuration</h3>
+        <button class="btn-close" aria-label="Close Settings dialog" onclick="closeSettings()">&times;</button>
       </div>
       <div style="font-size: 0.92rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
         JurisClear AI operates in two high-performance modes:
@@ -558,23 +577,23 @@
       </div>
 
       <div style="margin-bottom: 1.25rem;">
-        <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.35rem;">GEMINI API KEY:</label>
-        <input type="password" id="geminiApiKeyInput" placeholder="AQ... or AIzaSy..." style="width: 100%; padding: 0.7rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.92rem;">
+        <label for="geminiApiKeyInput" id="labelGeminiApiKey" style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.35rem;">GEMINI API KEY:</label>
+        <input type="password" id="geminiApiKeyInput" placeholder="AQ... or AIzaSy..." aria-labelledby="labelGeminiApiKey" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.92rem;">
         <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem;">Stored locally in your browser. Leave blank to use the Built-in Intelligence Engine.</div>
       </div>
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.75rem;">
-        <button class="btn-secondary" onclick="clearApiKey()">Remove Key</button>
-        <button class="btn-primary" onclick="saveApiKey()">Save & Apply</button>
+        <button class="btn-secondary" aria-label="Remove stored API Key" onclick="clearApiKey()">Remove Key</button>
+        <button class="btn-primary" aria-label="Save and apply API Key" onclick="saveApiKey()">Save & Apply</button>
       </div>
     </div>
   </div>
 
   <!-- Toast Container -->
-  <div id="toastContainer" class="toast-container"></div>
+  <div id="toastContainer" class="toast-container" role="status" aria-live="polite"></div>
 
   <!-- Footer -->
-  <footer class="app-footer">
+  <footer class="app-footer" role="contentinfo">
     <p>© 2026 JurisClear AI — Built with Google Gemini 3.8 Flash. Designed to make legal agreements transparent, accessible, and negotiable for everyone.</p>
     <p style="margin-top: 0.4rem; font-size: 0.8rem;">Disclaimer: JurisClear AI is an educational assistance platform and does not provide legal advice or form an attorney-client relationship.</p>
   </footer>
