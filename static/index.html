@@ -154,8 +154,8 @@
     <!-- Results Dashboard Section -->
     <section id="resultsSection" class="results-container">
 
-      <!-- Executive Overview & Radial Risk Radar Gauge -->
-      <div class="overview-card">
+      <!-- Executive Overview & Radial Risk Radar Gauge (Single Document Mode) -->
+      <div id="singleOverviewCard" class="overview-card">
         <div class="overview-meta">
           <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <span id="resDocType" class="badge badge-info">Document Type</span>
@@ -199,6 +199,89 @@
             <span id="statRedFlags" class="risk-pill pill-critical">3 Red Flags</span>
             <span id="statWarningFlags" class="risk-pill pill-warning">2 Warnings</span>
             <span id="statSafeFlags" class="risk-pill pill-safe">4 Safe</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dual-Contract Comparative Intelligence Overview (Compare Mode) -->
+      <div id="compareOverviewCard" class="compare-overview-card" style="display: none;">
+        <div class="compare-header-row">
+          <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+            <span class="badge" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.85rem; font-weight: 800;">⚖️ Dual Contract Comparative Intelligence</span>
+            <span id="compEngineTag" class="badge" style="background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;">Gemini 2.5 Flash</span>
+          </div>
+          <span style="font-size: 0.82rem; color: var(--text-muted);">Side-by-Side Semantic Divergence & Redline Model</span>
+        </div>
+
+        <!-- Side-by-Side Document Profiles -->
+        <div class="dual-profile-grid">
+          <!-- Document A Profile -->
+          <div class="doc-profile-card profile-a" id="profileDocACard">
+            <div class="doc-profile-badge">DOCUMENT A &bull; BASELINE / PRIOR DRAFT</div>
+            <h3 id="profileDocAName" class="doc-profile-title">Document A</h3>
+            <div class="doc-profile-meta">
+              <span id="profileDocAType" class="doc-profile-chip">—</span>
+              <span id="profileDocAClauses" class="doc-profile-chip">—</span>
+            </div>
+            <div class="doc-profile-risk-row">
+              <span id="profileDocAScore" class="doc-profile-score pill-safe">Score: 20/100</span>
+              <span id="profileDocAPosture" class="doc-profile-posture">Balanced Mutual Protection</span>
+            </div>
+            <ul id="profileDocAHighlights" class="doc-profile-highlights"></ul>
+          </div>
+
+          <!-- Document B Profile -->
+          <div class="doc-profile-card profile-b" id="profileDocBCard">
+            <div class="doc-profile-badge">DOCUMENT B &bull; PROPOSED / REDLINE</div>
+            <h3 id="profileDocBName" class="doc-profile-title">Document B</h3>
+            <div class="doc-profile-meta">
+              <span id="profileDocBType" class="doc-profile-chip">—</span>
+              <span id="profileDocBClauses" class="doc-profile-chip">—</span>
+            </div>
+            <div class="doc-profile-risk-row">
+              <span id="profileDocBScore" class="doc-profile-score pill-critical">Score: 85/100</span>
+              <span id="profileDocBPosture" class="doc-profile-posture">Aggressive One-Sided Drafter</span>
+            </div>
+            <ul id="profileDocBHighlights" class="doc-profile-highlights"></ul>
+          </div>
+        </div>
+
+        <!-- Animated Tug-of-War Balance Meter -->
+        <div class="balance-meter-box">
+          <div class="balance-meter-header">
+            <div>
+              <span style="font-weight: 800; font-size: 0.95rem;">⚖️ Favorability Shift & Legal Exposure Delta</span>
+              <span id="compareShiftBadge" class="risk-pill pill-critical" style="margin-left: 0.75rem;">Shifted 65% towards Counterparty</span>
+            </div>
+            <div id="compareRiskDeltaText" style="font-size: 0.88rem; font-weight: 700; color: var(--risk-critical);">High Risk Increase in Document B</div>
+          </div>
+          <div class="balance-track-wrapper">
+            <div class="balance-track">
+              <div class="balance-zone-left"></div>
+              <div class="balance-zone-center"></div>
+              <div class="balance-zone-right"></div>
+              <div id="balancePointer" class="balance-pointer" style="left: 82.5%;"></div>
+            </div>
+            <div class="balance-labels-row">
+              <span class="label-side left">⬅️ Favors You / Baseline (Doc A)</span>
+              <span class="label-side center">Equal / Balanced</span>
+              <span class="label-side right">Favors Counterparty (Doc B) ➡️</span>
+            </div>
+          </div>
+          <div class="compare-stats-pills">
+            <span id="compStatDiffs" class="comp-stat-pill pill-mod">4 Key Differences</span>
+            <span id="compStatSims" class="comp-stat-pill pill-sim">4 Aligned Similarities</span>
+            <span id="compStatAdded" class="comp-stat-pill pill-add">+2 Added Provisions</span>
+            <span id="compStatRemoved" class="comp-stat-pill pill-rem">-0 Removed Provisions</span>
+          </div>
+        </div>
+
+        <!-- Strategic Recommendation Banner -->
+        <div id="compareRecommendationBox" class="compare-rec-box">
+          <span style="font-size: 1.3rem;">💡</span>
+          <div>
+            <strong>Strategic Recommendation:</strong>
+            <span id="compareRecommendationText">Run comparison to inspect actionable negotiation guidance.</span>
           </div>
         </div>
       </div>
@@ -282,26 +365,80 @@
       <!-- TAB 3: Contract Diff & Redline -->
       <div id="pane-diff" class="feature-pane">
         <div id="diffResultsContainer">
-          <div class="diff-summary-card">
-            <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Semantic Difference & Risk Shift Analysis</h3>
-            <p id="diffSummaryText" style="color: var(--text-secondary); font-size: 0.95rem;">Run a comparison between two agreements to inspect shifts in favorability and obligations.</p>
-            <div class="diff-stat-grid">
-              <div class="detail-item">
-                <div class="detail-label">Favorability Shift</div>
-                <div id="diffFavorability" class="detail-val" style="color: var(--risk-critical); font-size: 1.05rem;">—</div>
-              </div>
-              <div class="detail-item">
-                <div class="detail-label">Risk Delta</div>
-                <div id="diffRiskDelta" class="detail-val" style="font-size: 1.05rem;">—</div>
-              </div>
+          <!-- Diff Sub-Navigation Bar -->
+          <div class="diff-subnav-bar">
+            <div class="diff-filter-chips">
+              <button id="diffSubTabAll" class="diff-filter-chip active" onclick="filterDiffSubView('all')">
+                <span>⚖️ All Changes (<span id="countDiffAll">0</span>)</span>
+              </button>
+              <button id="diffSubTabSims" class="diff-filter-chip" onclick="filterDiffSubView('sims')">
+                <span>🟢 Similarities & Common Ground (<span id="countDiffSims">0</span>)</span>
+              </button>
+              <button id="diffSubTabCritical" class="diff-filter-chip" onclick="filterDiffSubView('critical')">
+                <span>🚨 Critical Traps (<span id="countDiffCritical">0</span>)</span>
+              </button>
+              <button id="diffSubTabPlaybook" class="diff-filter-chip" onclick="filterDiffSubView('playbook')">
+                <span>📋 Negotiation Playbook (<span id="countDiffPlaybook">0</span>)</span>
+              </button>
             </div>
-            <div id="diffRecommendationBox" style="margin-top: 1.25rem; padding: 1rem; background: #eff6ff; border-radius: var(--radius-md); border: 1px solid #bfdbfe; font-size: 0.92rem;">
-              <strong>Strategic Recommendation:</strong> <span id="diffRecommendationText">—</span>
+
+            <!-- View Toggle: Inline Redline vs Side-by-Side Columns -->
+            <div class="redline-view-mode-toggle">
+              <span style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">REDLINE VIEW:</span>
+              <div class="view-mode-switch">
+                <button id="redlineInlineBtn" class="view-mode-btn active" onclick="setRedlineDisplayMode('inline')">Inline Redline</button>
+                <button id="redlineSideBtn" class="view-mode-btn" onclick="setRedlineDisplayMode('side')">Side-by-Side Split</button>
+              </div>
             </div>
           </div>
 
-          <div style="font-weight: 800; font-size: 1.1rem; margin-bottom: 1rem;">Clause-by-Clause Differences</div>
-          <div id="diffItemsList"></div>
+          <!-- SUB-VIEW 1: SIMILARITIES & COMMON GROUND -->
+          <div id="diffSimsContainer" class="diff-section-container" style="display: block;">
+            <div class="diff-section-banner similarity-banner">
+              <div>
+                <h3 style="font-size: 1.12rem; font-weight: 800; color: #065f46; display: flex; align-items: center; gap: 0.5rem;">
+                  <span>🟢 Shared Provisions & Common Ground</span>
+                  <span class="badge" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">No Dispute Needed</span>
+                </h3>
+                <p style="font-size: 0.88rem; color: #047857; margin-top: 0.2rem;">
+                  Both agreements are already aligned on these essential terms. You can safely preserve these clauses without wasting time or legal fees on negotiation.
+                </p>
+              </div>
+            </div>
+            <div id="similaritiesGrid" class="similarities-grid"></div>
+          </div>
+
+          <!-- SUB-VIEW 2: CLAUSE-BY-CLAUSE DIVERGENCES & REDLINES -->
+          <div id="diffClausesContainer" class="diff-section-container" style="display: block; margin-top: 1.5rem;">
+            <div class="diff-section-banner divergence-banner">
+              <div>
+                <h3 style="font-size: 1.12rem; font-weight: 800; color: var(--secondary); display: flex; align-items: center; gap: 0.5rem;">
+                  <span>⚖️ Clause-by-Clause Divergences & Redlines</span>
+                  <span class="badge badge-info" id="countDiffBadge">0 Differences</span>
+                </h3>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                  Examine exact word additions (<span class="redline-sample-ins">+added in Doc B</span>), deletions (<span class="redline-sample-del">-removed from Doc A</span>), and shifted liabilities.
+                </p>
+              </div>
+            </div>
+            <div id="diffItemsList"></div>
+          </div>
+
+          <!-- SUB-VIEW 3: STRATEGIC NEGOTIATION PLAYBOOK & EMAIL BRIDGE -->
+          <div id="diffPlaybookContainer" class="diff-section-container" style="display: none; margin-top: 1.5rem;">
+            <div class="intake-card" style="padding: 1.75rem; border-left: 6px solid var(--primary);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                <div>
+                  <h3 style="font-size: 1.15rem; font-weight: 800;">📋 Tactical Rebalancing Playbook</h3>
+                  <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.25rem;">Step-by-step counter-proposals to reconcile Document B back to the balanced standard of Document A.</p>
+                </div>
+                <button class="btn-primary" onclick="bridgeDiffToNegotiationEmail()">
+                  <span>✉️ Populate Counter-Proposal Email Drafter</span>
+                </button>
+              </div>
+              <div id="diffPlaybookChecklist"></div>
+            </div>
+          </div>
         </div>
       </div>
 

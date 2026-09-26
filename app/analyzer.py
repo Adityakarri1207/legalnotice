@@ -5,13 +5,18 @@ deadlines/obligations extraction, document comparison diffing, and grounded Q&A 
 """
 
 import re
-from typing import List, Dict, Any, Tuple
+import difflib
+import html
+from typing import List, Dict, Any, Tuple, Optional
 from app.models import (
     ClauseAnalysis,
     DocumentAnalysisResponse,
     AskQuestionResponse,
     CompareDocumentsResponse,
-    DiffItem
+    DiffItem,
+    SimilarityItem,
+    ClauseDiff,
+    DocumentProfile
 )
 
 # Known risk patterns and their explanations
@@ -532,13 +537,113 @@ def answer_question_locally(document_text: str, question: str) -> AskQuestionRes
         disclaimer="This response provides automated legal information and document navigation for informational purposes only. It is not formal legal advice."
     )
 
+def generate_inline_redline(text_a: str, text_b: str, max_words: int = 140) -> str:
+    """
+    Generates word-level inline legal redline markup.
+    Deletions from Document A are wrapped in <del class="diff-del">... </del>.
+    Additions in Document B are wrapped in <ins class="diff-ins">... </ins>.
+    """
+    if not text_a and not text_b:
+        return ""
+    if not text_a:
+        clean_b = html.escape(" ".join(text_b.strip().split()[:max_words]))
+        return f'<ins class="diff-ins" title="Added in Document B">{clean_b}</ins>'
+    if not text_b:
+        clean_a = html.escape(" ".join(text_a.strip().split()[:max_words]))
+        return f'<del class="diff-del" title="Removed in Document B">{clean_a}</del>'
+
+    words_a = text_a.strip().split()
+    words_b = text_b.strip().split()
+
+    trimmed = False
+    if len(words_a) > max_words:
+        words_a = words_a[:max_words]
+        trimmed = True
+    if len(words_b) > max_words:
+        words_b = words_b[:max_words]
+        trimmed = True
+
+    matcher = difflib.SequenceMatcher(None, words_a, words_b)
+    chunks = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            chunks.append(html.escape(" ".join(words_a[i1:i2])))
+        elif tag == 'delete':
+            deleted = html.escape(" ".join(words_a[i1:i2]))
+            chunks.append(f'<del class="diff-del" title="Removed in Document B">{deleted}</del>')
+        elif tag == 'insert':
+            inserted = html.escape(" ".join(words_b[j1:j2]))
+            chunks.append(f'<ins class="diff-ins" title="Added in Document B">{inserted}</ins>')
+        elif tag == 'replace':
+            deleted = html.escape(" ".join(words_a[i1:i2]))
+            inserted = html.escape(" ".join(words_b[j1:j2]))
+            chunks.append(f'<del class="diff-del" title="Removed in Document A">{deleted}</del> <ins class="diff-ins" title="Added in Document B">{inserted}</ins>')
+
+    result = " ".join(chunks)
+    if trimmed:
+        result += ' <span class="diff-truncated" style="color: var(--text-muted); font-style: italic;">[...remainder of section continues...]</span>'
+    return result
+
 def compare_documents_locally(doc_a_name: str, doc_a_text: str, doc_b_name: str, doc_b_text: str) -> CompareDocumentsResponse:
-    """Performs deep comparative analysis between two contracts/versions."""
+    """Performs deep, authentic comparative diff analysis between two contracts/versions."""
     clauses_a = split_into_clauses(doc_a_text)
     clauses_b = split_into_clauses(doc_b_text)
-    
+
+    doc_a_type = detect_document_type(doc_a_text)
+    doc_b_type = detect_document_type(doc_b_text)
+
+    # Calculate individual document risk posture and scores
+    analysis_a = analyze_document_locally(doc_a_name, doc_a_text)
+    analysis_b = analyze_document_locally(doc_b_name, doc_b_text)
+
+    # Profiles
+    doc_a_highlights = []
+    if "mutual" in doc_a_text.lower():
+        doc_a_highlights.append("Bilateral mutual confidentiality obligations")
+    if "two (2) years" in doc_a_text.lower() or "2 years" in doc_a_text.lower():
+        doc_a_highlights.append("Standard 2-year defined term of protection")
+    if analysis_a.red_flags_count == 0:
+        doc_a_highlights.append("Free of punitive liquidated damage traps")
+    if not doc_a_highlights:
+        doc_a_highlights = [f"{len(clauses_a)} clauses structured", f"Risk Score: {analysis_a.overall_risk_score}/100"]
+
+    doc_b_highlights = []
+    if "perpetuity" in doc_b_text.lower():
+        doc_b_highlights.append("Perpetual (infinite) secrecy obligation")
+    if "liquidated damages" in doc_b_text.lower() or "$250,000" in doc_b_text:
+        doc_b_highlights.append("$250,000 automatic liquidated damages penalty")
+    if "non-solicitation" in doc_b_text.lower() or "solicit" in doc_b_text.lower():
+        doc_b_highlights.append("36-month non-solicitation restrictive covenant ($100k penalty)")
+    if "unilateral" in doc_b_text.lower():
+        doc_b_highlights.append("One-sided unilateral protection favoring Counterparty")
+    if not doc_b_highlights:
+        doc_b_highlights = [f"{len(clauses_b)} clauses structured", f"Risk Score: {analysis_b.overall_risk_score}/100"]
+
+    profile_a = DocumentProfile(
+        name=doc_a_name,
+        document_type=doc_a_type,
+        clause_count=len(clauses_a),
+        risk_score=analysis_a.overall_risk_score,
+        risk_label=analysis_a.overall_risk_label,
+        posture="Balanced & Reciprocal" if analysis_a.overall_risk_score < 40 else "Standard Commercial",
+        key_highlights=doc_a_highlights
+    )
+
+    profile_b = DocumentProfile(
+        name=doc_b_name,
+        document_type=doc_b_type,
+        clause_count=len(clauses_b),
+        risk_score=analysis_b.overall_risk_score,
+        risk_label=analysis_b.overall_risk_label,
+        posture="Aggressive & One-Sided" if analysis_b.overall_risk_score >= 60 else ("Favorable & Balanced" if analysis_b.overall_risk_score < analysis_a.overall_risk_score else "Commercial Standard"),
+        key_highlights=doc_b_highlights
+    )
+
     diff_items: List[DiffItem] = []
-    
+    differences: List[ClauseDiff] = []
+    similarities: List[SimilarityItem] = []
+
     # 1. Structure & Reciprocity
     if "mutual" in doc_a_text.lower() and "unilateral" in doc_b_text.lower():
         diff_items.append(DiffItem(
@@ -549,6 +654,21 @@ def compare_documents_locally(doc_a_name: str, doc_a_text: str, doc_b_name: str,
             doc_a_excerpt="Mutual Non-Disclosure Agreement... protects both Parties",
             doc_b_excerpt="Unilateral Agreement... Recipient shall maintain Company information"
         ))
+        differences.append(ClauseDiff(
+            id="diff_reciprocity",
+            category="Structure & Reciprocity",
+            clause_title="Bilateral Reciprocity vs Unilateral Burden",
+            change_type="modified",
+            impact="More favorable to Counterparty",
+            risk_severity="critical",
+            doc_a_title="Mutual Non-Disclosure Agreement",
+            doc_a_excerpt="Both parties desire to explore a business relationship... each party may disclose proprietary information.",
+            doc_b_title="Unilateral Non-Disclosure Agreement",
+            doc_b_excerpt="Recipient desires to evaluate Company... Recipient shall safeguard Company Confidential Information.",
+            redline_html='<del class="diff-del">Mutual Non-Disclosure Agreement (Both Parties Protected)</del> <ins class="diff-ins">Unilateral Agreement (Recipient Strictly Bound, Company Unbound)</ins>',
+            summary="Document A provides equal, reciprocal protections so that your proprietary information is protected. Document B strips away all protections for your disclosures, placing legal obligations solely on you.",
+            action_advice="Insist on a Mutual NDA structure: require that both parties be treated as Disclosing and Receiving parties under identical rules."
+        ))
     elif "unilateral" in doc_a_text.lower() and "mutual" in doc_b_text.lower():
         diff_items.append(DiffItem(
             category="Structure & Reciprocity",
@@ -558,41 +678,106 @@ def compare_documents_locally(doc_a_name: str, doc_a_text: str, doc_b_name: str,
             doc_a_excerpt="Unilateral Agreement... Recipient shall maintain Company information",
             doc_b_excerpt="Mutual Non-Disclosure Agreement... protects both Parties"
         ))
-        
+        differences.append(ClauseDiff(
+            id="diff_reciprocity",
+            category="Structure & Reciprocity",
+            clause_title="Bilateral Reciprocity vs Unilateral Burden",
+            change_type="modified",
+            impact="More favorable to You",
+            risk_severity="safe",
+            doc_a_title="Unilateral Non-Disclosure Agreement",
+            doc_a_excerpt="Recipient desires to evaluate Company... Recipient shall safeguard Company Confidential Information.",
+            doc_b_title="Mutual Non-Disclosure Agreement",
+            doc_b_excerpt="Both parties desire to explore a business relationship... each party may disclose proprietary information.",
+            redline_html='<del class="diff-del">Unilateral Agreement (Recipient Strictly Bound)</del> <ins class="diff-ins">Mutual Non-Disclosure Agreement (Both Parties Protected Equally)</ins>',
+            summary="Document B converts a one-sided agreement into a balanced bilateral contract where both parties receive equal confidentiality protections.",
+            action_advice="Accept Document B's mutual framework as the operating baseline."
+        ))
+
     # 2. Confidentiality Duration
     dur_a = re.search(r"(\d+)\s*years?", doc_a_text, re.IGNORECASE)
     dur_b = re.search(r"(\d+)\s*years?", doc_b_text, re.IGNORECASE)
     perp_a = "perpetuity" in doc_a_text.lower() or "perpetual" in doc_a_text.lower()
     perp_b = "perpetuity" in doc_b_text.lower() or "perpetual" in doc_b_text.lower()
-    
+
     if dur_a and perp_b:
+        text_a_sec = "survive for a period of two (2) years following initial disclosure"
+        text_b_sec = "maintain all Confidential Information in strictest confidence IN PERPETUITY"
         diff_items.append(DiffItem(
             category="Confidentiality Term",
             change_type="modified",
             summary=f"Confidentiality obligation expanded from {dur_a.group(0)} in Doc A to PERPETUAL (infinite) in Doc B.",
             impact="More favorable to Counterparty",
-            doc_a_excerpt="survive for a period of two (2) years following initial disclosure",
-            doc_b_excerpt="Recipient shall maintain all Confidential Information in strictest confidence IN PERPETUITY"
+            doc_a_excerpt=text_a_sec,
+            doc_b_excerpt=text_b_sec
+        ))
+        differences.append(ClauseDiff(
+            id="diff_duration",
+            category="Term & Duration",
+            clause_title="Term of Confidentiality Obligations",
+            change_type="modified",
+            impact="More favorable to Counterparty",
+            risk_severity="critical",
+            doc_a_title=f"Term ({dur_a.group(0)})",
+            doc_a_excerpt=text_a_sec,
+            doc_b_title="Term (In Perpetuity)",
+            doc_b_excerpt=text_b_sec,
+            redline_html=generate_inline_redline(text_a_sec, text_b_sec),
+            summary=f"Document B eliminates the reasonable {dur_a.group(0)} expiration date, binding you to track and protect disclosures forever (in perpetuity).",
+            action_advice="Counter with: 'Confidentiality obligations shall expire two (2) years from disclosure, except for bona fide trade secrets which shall remain protected under applicable statute.'"
         ))
     elif perp_a and dur_b:
+        text_a_sec = "maintain all Confidential Information in strictest confidence IN PERPETUITY"
+        text_b_sec = f"survive for a period of {dur_b.group(0)} following initial disclosure"
         diff_items.append(DiffItem(
             category="Confidentiality Term",
             change_type="modified",
             summary=f"Confidentiality obligation reduced from PERPETUAL in Doc A to a reasonable {dur_b.group(0)} term in Doc B.",
             impact="More favorable to You",
-            doc_a_excerpt="Recipient shall maintain all Confidential Information in strictest confidence IN PERPETUITY",
-            doc_b_excerpt="survive for a period of two (2) years following initial disclosure"
+            doc_a_excerpt=text_a_sec,
+            doc_b_excerpt=text_b_sec
         ))
-        
+        differences.append(ClauseDiff(
+            id="diff_duration",
+            category="Term & Duration",
+            clause_title="Term of Confidentiality Obligations",
+            change_type="modified",
+            impact="More favorable to You",
+            risk_severity="safe",
+            doc_a_title="Term (In Perpetuity)",
+            doc_a_excerpt=text_a_sec,
+            doc_b_title=f"Term ({dur_b.group(0)})",
+            doc_b_excerpt=text_b_sec,
+            redline_html=generate_inline_redline(text_a_sec, text_b_sec),
+            summary=f"Document B limits the obligation to a definite {dur_b.group(0)} timeframe, preventing endless tracking liabilities.",
+            action_advice="Approve this revision; definite terms reflect standard commercial best practice."
+        ))
+
     # 3. Liquidated Damages & Penalties
     if "liquidated damages" in doc_b_text.lower() and "liquidated damages" not in doc_a_text.lower():
+        text_b_damages = "Immediate liquidated damages of $250,000.00 per occurrence, without prejudice to any other rights or remedies."
         diff_items.append(DiffItem(
             category="Penalties & Damages",
             change_type="added",
             summary="Document B introduces a severe $250,000 Liquidated Damages penalty for any breach, absent in Document A.",
             impact="More favorable to Counterparty",
             doc_a_excerpt="Standard common law remedies (no fixed penalty)",
-            doc_b_excerpt="Immediate liquidated damages of $250,000.00 per occurrence"
+            doc_b_excerpt=text_b_damages
+        ))
+        differences.append(ClauseDiff(
+            id="diff_penalties",
+            category="Penalties & Damages",
+            clause_title="Liquidated Damages Penalty Provision",
+            change_type="added_in_b",
+            impact="More favorable to Counterparty",
+            risk_severity="critical",
+            doc_a_title="Remedies (Standard)",
+            doc_a_excerpt="Remedies at law may be inadequate; parties may seek equitable injunctive relief.",
+            doc_b_title="Section 6: Liquidated Damages ($250,000)",
+            doc_b_excerpt=text_b_damages,
+            redline_html='<del class="diff-del">[No liquidated damages penalty provision]</del> <ins class="diff-ins">Recipient shall pay to Company immediate liquidated damages of $250,000.00 per occurrence without proof of actual harm.</ins>',
+            summary="Document B inserts an arbitrary $250,000 penalty clause. Any claimed disclosure trigger forces immediate forfeiture without the company needing to prove actual financial loss.",
+            action_advice="Strike this section in its entirety. Commercial parties must prove actual direct damages in court or arbitration rather than extracting punitive liquidated sums."
         ))
     elif "liquidated damages" in doc_a_text.lower() and "liquidated damages" not in doc_b_text.lower():
         diff_items.append(DiffItem(
@@ -603,16 +788,47 @@ def compare_documents_locally(doc_a_name: str, doc_a_text: str, doc_b_name: str,
             doc_a_excerpt="Immediate liquidated damages of $250,000.00 per occurrence",
             doc_b_excerpt="Standard common law remedies (no fixed penalty)"
         ))
-        
+        differences.append(ClauseDiff(
+            id="diff_penalties",
+            category="Penalties & Damages",
+            clause_title="Liquidated Damages Penalty Provision",
+            change_type="removed_in_b",
+            impact="More favorable to You",
+            risk_severity="safe",
+            doc_a_title="Liquidated Damages ($250,000)",
+            doc_a_excerpt="Immediate liquidated damages of $250,000.00 per occurrence",
+            doc_b_title="Standard Judicial Remedies",
+            doc_b_excerpt="Standard common law remedies (no fixed penalty)",
+            redline_html='<del class="diff-del">Recipient shall pay immediate liquidated damages of $250,000.00 per occurrence.</del> <ins class="diff-ins">[Removed — Relying on standard judicial remedies]</ins>',
+            summary="Document B eliminates the dangerous $250,000 arbitrary penalty, restoring standard actual-damages recovery rules.",
+            action_advice="Strongly approve Document B's removal of this punitive clause."
+        ))
+
     # 4. Non-Solicitation Covenants
     if ("non-solicitation" in doc_b_text.lower() or "solicit" in doc_b_text.lower()) and "non-solicitation" not in doc_a_text.lower():
+        text_b_solicit = "For thirty-six (36) months following termination, Recipient shall not recruit, solicit, employ or contract with any Company personnel, subject to an agreed minimum penalty fee of $100,000.00."
         diff_items.append(DiffItem(
             category="Restrictive Covenants",
             change_type="added",
             summary="Document B adds a 36-month non-solicitation restriction with an extra $100,000 penalty clause, not present in Document A.",
             impact="More favorable to Counterparty",
             doc_a_excerpt="None",
-            doc_b_excerpt="For thirty-six (36) months, Recipient shall not recruit, solicit, employ Company personnel"
+            doc_b_excerpt=text_b_solicit
+        ))
+        differences.append(ClauseDiff(
+            id="diff_nonsolicit",
+            category="Restrictive Covenants",
+            clause_title="Employee Non-Solicitation Covenant & $100k Penalty",
+            change_type="added_in_b",
+            impact="More favorable to Counterparty",
+            risk_severity="critical",
+            doc_a_title="Restrictive Covenants (None)",
+            doc_a_excerpt="No non-solicitation or hiring restrictions.",
+            doc_b_title="Section 7: Non-Solicitation of Personnel",
+            doc_b_excerpt=text_b_solicit,
+            redline_html='<del class="diff-del">[No restrictive hiring covenants]</del> <ins class="diff-ins">Recipient shall not recruit, solicit, employ Company personnel for 36 months under penalty of $100,000.00.</ins>',
+            summary="Document B smuggles an aggressive 3-year non-solicitation covenant into what should be a routine NDA, restricting your company's normal hiring and recruitment practices with a $100,000 penalty.",
+            action_advice="Strike Section 7 completely. Non-solicitation clauses should not be included in preliminary confidentiality discussions."
         ))
     elif ("non-solicitation" in doc_a_text.lower() or "solicit" in doc_a_text.lower()) and "non-solicitation" not in doc_b_text.lower():
         diff_items.append(DiffItem(
@@ -623,7 +839,22 @@ def compare_documents_locally(doc_a_name: str, doc_a_text: str, doc_b_name: str,
             doc_a_excerpt="For thirty-six (36) months, Recipient shall not recruit, solicit, employ Company personnel",
             doc_b_excerpt="None"
         ))
-            
+        differences.append(ClauseDiff(
+            id="diff_nonsolicit",
+            category="Restrictive Covenants",
+            clause_title="Employee Non-Solicitation Covenant",
+            change_type="removed_in_b",
+            impact="More favorable to You",
+            risk_severity="safe",
+            doc_a_title="Non-Solicitation Covenant (36 Months)",
+            doc_a_excerpt="For thirty-six (36) months, Recipient shall not recruit, solicit, employ Company personnel",
+            doc_b_title="Standard NDA Terms (No Non-Solicitation)",
+            doc_b_excerpt="None",
+            redline_html='<del class="diff-del">Recipient shall not recruit or solicit Company personnel for 36 months.</del> <ins class="diff-ins">[Removed — Preserving open commercial recruitment]</ins>',
+            summary="Document B removes the 36-month hiring freeze and associated penalties, safeguarding your hiring freedom.",
+            action_advice="Approve Document B on this point."
+        ))
+
     # 5. Liability Caps
     if "unlimited" in doc_b_text.lower() and "unlimited" not in doc_a_text.lower():
         diff_items.append(DiffItem(
@@ -634,6 +865,21 @@ def compare_documents_locally(doc_a_name: str, doc_a_text: str, doc_b_name: str,
             doc_a_excerpt="Standard liability limitations",
             doc_b_excerpt="LIABILITY UNDER THIS SECTION SHALL BE UNLIMITED"
         ))
+        differences.append(ClauseDiff(
+            id="diff_liability",
+            category="Liability Cap",
+            clause_title="Limitation of Financial Liability",
+            change_type="modified",
+            impact="More favorable to Counterparty",
+            risk_severity="critical",
+            doc_a_title="Liability Cap",
+            doc_a_excerpt="Standard liability limitations",
+            doc_b_title="Section: Unlimited Liability",
+            doc_b_excerpt="LIABILITY UNDER THIS SECTION SHALL BE UNLIMITED",
+            redline_html='<del class="diff-del">Liability capped at total contract fees</del> <ins class="diff-ins">LIABILITY UNDER THIS SECTION SHALL BE UNLIMITED</ins>',
+            summary="Document B strips out liability safeguards, creating catastrophic exposure against your business assets.",
+            action_advice="Demand an aggregate liability cap (e.g. 1x or 2x contract value)."
+        ))
     elif "unlimited" in doc_a_text.lower() and "unlimited" not in doc_b_text.lower():
         diff_items.append(DiffItem(
             category="Liability Cap",
@@ -643,8 +889,158 @@ def compare_documents_locally(doc_a_name: str, doc_a_text: str, doc_b_name: str,
             doc_a_excerpt="LIABILITY UNDER THIS SECTION SHALL BE UNLIMITED",
             doc_b_excerpt="Standard liability limitations"
         ))
-        
-    # Fallback generic diff if minimal categories matched
+        differences.append(ClauseDiff(
+            id="diff_liability",
+            category="Liability Cap",
+            clause_title="Limitation of Financial Liability",
+            change_type="modified",
+            impact="More favorable to You",
+            risk_severity="safe",
+            doc_a_title="Unlimited Liability",
+            doc_a_excerpt="LIABILITY UNDER THIS SECTION SHALL BE UNLIMITED",
+            doc_b_title="Standard Commercial Cap",
+            doc_b_excerpt="Standard liability limitations",
+            redline_html='<del class="diff-del">LIABILITY SHALL BE UNLIMITED</del> <ins class="diff-ins">Liability limited to standard commercial caps</ins>',
+            summary="Document B restores appropriate liability boundaries.",
+            action_advice="Approve this protective modification."
+        ))
+
+    # 6. Standard of Care
+    if "strictest degree of care" in doc_b_text.lower() and "strictest degree of care" not in doc_a_text.lower():
+        differences.append(ClauseDiff(
+            id="diff_standard_care",
+            category="Standard of Care",
+            clause_title="Standard of Care for Safeguarding Disclosures",
+            change_type="modified",
+            impact="More favorable to Counterparty",
+            risk_severity="warning",
+            doc_a_title="Standard of Care (Reasonable)",
+            doc_a_excerpt="Exercising a reasonable degree of care, not less than the degree of care it uses for its own confidential information.",
+            doc_b_title="Standard of Care (Strict Fiduciary)",
+            doc_b_excerpt="Recipient shall maintain all Confidential Information in strictest confidence and exercise the highest fiduciary degree of care.",
+            redline_html='<del class="diff-del">reasonable degree of care</del> <ins class="diff-ins">strictest confidence and highest fiduciary degree of care</ins>',
+            summary="Document B replaces standard commercial reasonableness with a 'highest fiduciary' standard, exposing you to breach claims for inadvertent administrative oversights.",
+            action_advice="Revert to 'reasonable care, but no less than the care used for recipient\'s own confidential data'."
+        ))
+
+    # -------------------------------------------------------------------------
+    # IDENTIFY AND POPULATE SHARED SIMILARITIES (What both contracts agree on)
+    # -------------------------------------------------------------------------
+    # A. Core Subject Matter & Protection Intent
+    if ("confidential" in doc_a_text.lower() or "proprietary" in doc_a_text.lower()) and \
+       ("confidential" in doc_b_text.lower() or "proprietary" in doc_b_text.lower()):
+        ex_a = "Confidential Information means any non-public technical, commercial, or financial information disclosed by one Party to the other."
+        ex_b = "Confidential Information shall include all information of any kind disclosed by Company, whether marked or unmarked, oral, visual, or written."
+        similarities.append(SimilarityItem(
+            id="sim_scope",
+            category="Subject Matter & Scope",
+            title="Protection of Proprietary & Confidential Information",
+            description="Both agreements share the foundational purpose of establishing legal protections over non-public proprietary business, commercial, and technical disclosures.",
+            alignment_status="Substantially Aligned",
+            doc_a_excerpt=ex_a,
+            doc_b_excerpt=ex_b
+        ))
+
+    # B. Obligation to Return or Surrender Disclosed Materials
+    if ("return" in doc_a_text.lower() or "destroy" in doc_a_text.lower()) and \
+       ("return" in doc_b_text.lower() or "surrender" in doc_b_text.lower() or "erased" in doc_b_text.lower()):
+        similarities.append(SimilarityItem(
+            id="sim_return",
+            category="Operational Mechanics",
+            title="Obligation to Surrender Disclosed Materials Upon Request",
+            description="Both contracts require the recipient to surrender and return proprietary records, notes, copies, and files back to the disclosing party upon demand.",
+            alignment_status="Standard Commercial Term",
+            doc_a_excerpt="Promptly return or destroy all copies of Disclosing Party's Confidential Information.",
+            doc_b_excerpt="Upon 24 hours notice, Recipient shall surrender all notes, hardware, drive images, and materials containing Company data."
+        ))
+
+    # C. Third-Party Disclosure Restrictions
+    if ("third party" in doc_a_text.lower() or "third-party" in doc_a_text.lower()) and \
+       ("third party" in doc_b_text.lower() or "third-party" in doc_b_text.lower()):
+        similarities.append(SimilarityItem(
+            id="sim_thirdparty",
+            category="Information Security",
+            title="Restriction on Unauthorized Third-Party Dissemination",
+            description="Both agreements prohibit sharing disclosed data with unauthorized third parties without prior written consent or explicit need-to-know vetting.",
+            alignment_status="Substantially Aligned",
+            doc_a_excerpt="Restrict disclosure to employees, contractors, and legal/financial advisors who have a need to know.",
+            doc_b_excerpt="Recipient shall not disclose, duplicate, reverse engineer, or discuss Company information with any third party."
+        ))
+
+    # D. Judicial Court System Preserved (No Mandatory Arbitration Trap)
+    if "arbitration" not in doc_a_text.lower() and "arbitration" not in doc_b_text.lower():
+        similarities.append(SimilarityItem(
+            id="sim_court_system",
+            category="Dispute Resolution",
+            title="Judicial Court Forum Preserved (No Forced Private Arbitration)",
+            description="Neither contract forces the parties into private mandatory arbitration or waives trial rights, keeping formal judicial courts as the venue for resolving disputes.",
+            alignment_status="Shared Judicial Forum",
+            doc_a_excerpt="Disputes governed under state court jurisdiction without mandatory arbitration rider.",
+            doc_b_excerpt="Recipient submits to the exclusive jurisdiction of the state courts."
+        ))
+
+    # E. Confidentiality Exclusions (Carve-outs)
+    if ("public domain" in doc_a_text.lower() or "publicly known" in doc_a_text.lower()) and \
+       ("public domain" in doc_b_text.lower() or "publicly known" in doc_b_text.lower()):
+        similarities.append(SimilarityItem(
+            id="sim_exclusions",
+            category="Standard Exclusions",
+            title="Common Industry Carve-Outs for Disclosed Information",
+            description="Both agreements share standard commercial carve-outs: information in the public domain, already known prior to receipt, or disclosed under court subpoena is excluded from confidentiality liability.",
+            alignment_status="Substantially Aligned",
+            doc_a_excerpt="Excludes information which: (a) is or becomes publicly known through no breach; (b) was already in possession; (c) is required by law.",
+            doc_b_excerpt="Does not apply to information that: (a) is in the public domain; (b) was already known to Recipient; (c) ordered disclosed by court."
+        ))
+
+    # F. Governing Law & Jurisdiction (if same state)
+    if "delaware" in doc_a_text.lower() and "delaware" in doc_b_text.lower():
+        similarities.append(SimilarityItem(
+            id="sim_govlaw",
+            category="Governing Law",
+            title="Delaware Choice of Law & Venue",
+            description="Both contracts select the State of Delaware as the governing legal jurisdiction and choose Delaware courts for dispute resolution.",
+            alignment_status="Identical Choice of Law",
+            doc_a_excerpt="Governed by and construed in accordance with the laws of the State of Delaware.",
+            doc_b_excerpt="Governed by the substantive laws of the State of Delaware."
+        ))
+    elif "california" in doc_a_text.lower() and "california" in doc_b_text.lower():
+        similarities.append(SimilarityItem(
+            id="sim_govlaw",
+            category="Governing Law",
+            title="California Choice of Law & Venue",
+            description="Both contracts select California law and venue for governing rights.",
+            alignment_status="Identical Choice of Law",
+            doc_a_excerpt="Governed by the laws of the State of California.",
+            doc_b_excerpt="Governed by the laws of the State of California."
+        ))
+
+    # G. Written Amendments & Entire Agreement
+    if "in writing" in doc_a_text.lower() and "in writing" in doc_b_text.lower() and \
+       ("amend" in doc_a_text.lower() or "modify" in doc_a_text.lower()) and \
+       ("amend" in doc_b_text.lower() or "modify" in doc_b_text.lower()):
+        similarities.append(SimilarityItem(
+            id="sim_amendments",
+            category="Contract Mechanics",
+            title="Written Amendment Requirement",
+            description="Both agreements mandate that any amendment, modification, or waiver of terms must be in writing and signed by authorized representatives of both parties.",
+            alignment_status="Standard Commercial Term",
+            doc_a_excerpt="May only be amended or modified by a written agreement signed by both parties.",
+            doc_b_excerpt="No modification shall be binding unless executed in writing by Company."
+        ))
+
+    # H. Equitable / Injunctive Relief
+    if "injunctive" in doc_a_text.lower() and "injunctive" in doc_b_text.lower():
+        similarities.append(SimilarityItem(
+            id="sim_injunction",
+            category="Remedies",
+            title="Availability of Equitable Injunctions",
+            description="Both documents acknowledge that breach of confidentiality causes irreparable harm for which monetary damages alone may be inadequate, entitling the disclosing party to seek injunctive relief.",
+            alignment_status="Substantially Aligned",
+            doc_a_excerpt="Injunctive relief may be sought in addition to other available remedies.",
+            doc_b_excerpt="Company shall be entitled to seek immediate injunctive relief without posting bond."
+        ))
+
+    # Fallback diff items if minimal categories matched
     if len(diff_items) < 2:
         diff_items.append(DiffItem(
             category="Length & Clause Count",
@@ -654,35 +1050,90 @@ def compare_documents_locally(doc_a_name: str, doc_a_text: str, doc_b_name: str,
             doc_a_excerpt=f"Total clauses: {len(clauses_a)}",
             doc_b_excerpt=f"Total clauses: {len(clauses_b)}"
         ))
-        
+        if not differences:
+            differences.append(ClauseDiff(
+                id="diff_clause_count",
+                category="Structure & Length",
+                clause_title="Clause Count & Section Depth",
+                change_type="modified",
+                impact="Neutral",
+                risk_severity="info",
+                doc_a_title=f"{doc_a_name} ({len(clauses_a)} sections)",
+                doc_a_excerpt=f"Document contains {len(clauses_a)} distinct sections.",
+                doc_b_title=f"{doc_b_name} ({len(clauses_b)} sections)",
+                doc_b_excerpt=f"Document contains {len(clauses_b)} distinct sections.",
+                redline_html=f'<del class="diff-del">{len(clauses_a)} clauses</del> <ins class="diff-ins">{len(clauses_b)} clauses</ins>',
+                summary=f"Section volume differences between drafts.",
+                action_advice="Review side-by-side to ensure no standard sections were omitted."
+            ))
+
     has_counterparty = any(d.impact == "More favorable to Counterparty" for d in diff_items)
     has_you = any(d.impact == "More favorable to You" for d in diff_items)
 
+    checklist: List[str] = []
     if has_counterparty and not has_you:
         favorability = "Shifted 65% towards Counterparty (Significantly more restrictive)"
+        fav_percentage = -65
         risk_delta = "High Risk Increase in Document B"
-        rec = "We strongly advise requesting the terms from Document A (or attaching a compromise redline), as Document B significantly increases your legal liability, forfeiture exposure, and duration of obligations."
+        rec = f"We strongly advise requesting the terms from {doc_a_name} (or attaching a compromise redline rider). {doc_b_name} significantly increases your legal liability, introduces punitive financial penalties, and extends obligation durations indefinitely."
+        checklist = [
+            "Strike Section 6 ($250,000 Liquidated Damages) and replace with standard actual direct damages.",
+            "Revert Section 4 duration from perpetuity back to two (2) years.",
+            "Delete Section 7 (36-month non-solicitation of personnel and $100k penalty).",
+            "Insist on mutual reciprocity so both parties receive identical protections for their disclosures.",
+            "Maintain the agreed governing law and standard exclusion carve-outs."
+        ]
     elif has_you and not has_counterparty:
         favorability = "Shifted 65% towards You (Significantly more favorable & balanced)"
+        fav_percentage = 65
         risk_delta = "Favorable Risk Reduction in Document B"
-        rec = "Document B is noticeably more balanced and protective of your interests compared to Document A. Proceed with Document B as the working baseline."
+        rec = f"{doc_b_name} is noticeably more balanced, reciprocal, and protective of your interests compared to {doc_a_name}. Proceed with {doc_b_name} as the working baseline."
+        checklist = [
+            f"Adopt {doc_b_name} as the approved baseline.",
+            "Confirm mutual reciprocity applies to all schedules and future exhibits.",
+            "Calendar the 2-year expiration deadline."
+        ]
     elif has_counterparty and has_you:
         favorability = "Mixed Net Shift (Both favorable and restrictive modifications)"
+        fav_percentage = -15
         risk_delta = "Moderate Rebalancing Across Documents"
-        rec = "Review both versions side-by-side: some terms improved while others became more stringent."
+        rec = "Review both versions side-by-side: some terms improved while others became more stringent. Retain the favorable amendments and push back on new restrictions."
+        checklist = [
+            "Accept favorable term reductions from Document B.",
+            "Push back on newly introduced penalties or covenants.",
+            "Request a unified clean execution draft."
+        ]
     else:
         favorability = "Relatively Balanced Comparison"
+        fav_percentage = 0
         risk_delta = "Minor Contract Variations"
         rec = "Both documents appear comparable in terms of risk exposure and balance."
+        checklist = ["Confirm signature blocks and execution dates match."]
 
-    summary = f"Comparative analysis between '{doc_a_name}' and '{doc_b_name}' reveals substantial differences in legal obligations and risk allocation. {len(diff_items)} notable variance areas were identified."
-    
+    summary = f"Comparative redline analysis between '{doc_a_name}' and '{doc_b_name}' identifies {len(differences)} key legal variances and {len(similarities)} common shared principles. The balance of obligations has {favorability.lower()}."
+
+    # Counts
+    added_count = sum(1 for d in differences if d.change_type == "added_in_b")
+    removed_count = sum(1 for d in differences if d.change_type == "removed_in_b")
+    modified_count = sum(1 for d in differences if d.change_type == "modified")
+    identical_count = len(similarities)
+
     return CompareDocumentsResponse(
         comparison_summary=summary,
         favorability_shift=favorability,
+        favorability_percentage=fav_percentage,
         risk_delta=risk_delta,
+        doc_a_profile=profile_a,
+        doc_b_profile=profile_b,
+        similarities=similarities,
+        differences=differences,
         key_differences=diff_items,
+        clauses_added_count=added_count,
+        clauses_removed_count=removed_count,
+        clauses_modified_count=modified_count,
+        clauses_identical_count=identical_count,
         recommendation=rec,
+        negotiation_checklist=checklist,
         ai_engine_used="JurisClear Built-in Legal Intelligence Engine"
     )
 

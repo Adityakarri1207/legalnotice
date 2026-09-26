@@ -195,6 +195,37 @@ class TestJurisClearComprehensive(unittest.TestCase):
         self.assertIn("You", diff_b_vs_a.favorability_shift)
         print(f"[OK] Comparison symmetry verified: {diff_b_vs_a.favorability_shift}")
 
+    def test_compare_similarities_and_redlines(self):
+        """Validates extraction of shared similarities, clause diffs, inline redlines, and document profiles."""
+        doc_a = SAMPLE_CONTRACTS["mutual_nda"]["text"]
+        doc_b = SAMPLE_CONTRACTS["unilateral_nda_aggressive"]["text"]
+
+        diff_data = compare_documents_locally("Mutual NDA", doc_a, "Unilateral NDA", doc_b)
+        
+        # 1. Similarities verified
+        self.assertGreaterEqual(len(diff_data.similarities), 2)
+        sim_titles = [s.title for s in diff_data.similarities]
+        self.assertTrue(any("Protection" in t or "Surrender" in t or "Third-Party" in t or "Judicial" in t for t in sim_titles))
+        for sim in diff_data.similarities:
+            self.assertTrue(len(sim.description) > 10)
+            self.assertIsNotNone(sim.alignment_status)
+
+        # 2. Detailed Clause Diffs with authentic Redlines verified
+        self.assertGreaterEqual(len(diff_data.differences), 3)
+        has_redline = any(d.redline_html and ("<del" in d.redline_html or "<ins" in d.redline_html) for d in diff_data.differences)
+        self.assertTrue(has_redline)
+
+        # 3. Document Profiles verified
+        self.assertEqual(diff_data.doc_a_profile.name, "Mutual NDA")
+        self.assertEqual(diff_data.doc_b_profile.name, "Unilateral NDA")
+        self.assertLess(diff_data.doc_a_profile.risk_score, diff_data.doc_b_profile.risk_score)
+        self.assertTrue(len(diff_data.doc_a_profile.key_highlights) > 0)
+        self.assertTrue(len(diff_data.doc_b_profile.key_highlights) > 0)
+
+        # 4. Actionable Negotiation Checklist verified
+        self.assertTrue(len(diff_data.negotiation_checklist) >= 3)
+        print(f"[OK] Full contract comparison verified: {len(diff_data.similarities)} similarities, {len(diff_data.differences)} clause redlines")
+
     # =========================================================================
     # 7. NEGOTIATION COUNTER-EMAIL GENERATOR TESTS
     # =========================================================================

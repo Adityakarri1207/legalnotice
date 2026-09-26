@@ -67,12 +67,55 @@ class DiffItem(BaseModel):
     doc_a_excerpt: Optional[str] = None
     doc_b_excerpt: Optional[str] = None
 
+class SimilarityItem(BaseModel):
+    id: str
+    category: str
+    title: str
+    description: str
+    alignment_status: str = "Standard Commercial Term"  # "Identical Language", "Substantially Aligned", "Standard Commercial Term"
+    doc_a_excerpt: Optional[str] = None
+    doc_b_excerpt: Optional[str] = None
+
+class ClauseDiff(BaseModel):
+    id: str
+    category: str
+    clause_title: str
+    change_type: str  # "modified", "added_in_b", "removed_in_b", "identical"
+    impact: str  # "More favorable to You", "More favorable to Counterparty", "Neutral"
+    risk_severity: str  # "critical", "warning", "info", "safe"
+    doc_a_title: Optional[str] = None
+    doc_a_excerpt: Optional[str] = None
+    doc_b_title: Optional[str] = None
+    doc_b_excerpt: Optional[str] = None
+    redline_html: Optional[str] = None  # Inline HTML with <del class="diff-del"> and <ins class="diff-ins">
+    summary: str
+    action_advice: str
+
+class DocumentProfile(BaseModel):
+    name: str
+    document_type: str
+    clause_count: int
+    risk_score: int
+    risk_label: str
+    posture: str  # "Balanced / Mutual", "Aggressive / Restrictive", etc.
+    key_highlights: List[str]
+
 class CompareDocumentsResponse(BaseModel):
     comparison_summary: str
-    favorability_shift: str  # e.g. "Shifted 40% towards Counterparty"
+    favorability_shift: str  # e.g. "Shifted 65% towards Counterparty"
+    favorability_percentage: int = 0  # -100 to +100 (- = counterparty, + = user)
     risk_delta: str  # "Significantly Higher Risk in Document B"
-    key_differences: List[DiffItem]
+    doc_a_profile: DocumentProfile
+    doc_b_profile: DocumentProfile
+    similarities: List[SimilarityItem] = []
+    differences: List[ClauseDiff] = []
+    key_differences: List[DiffItem] = []  # Kept for backward compatibility
+    clauses_added_count: int = 0
+    clauses_removed_count: int = 0
+    clauses_modified_count: int = 0
+    clauses_identical_count: int = 0
     recommendation: str
+    negotiation_checklist: List[str] = []
     ai_engine_used: str
 
 class GenerateCounterEmailRequest(BaseModel):

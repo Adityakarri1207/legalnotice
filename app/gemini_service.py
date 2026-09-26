@@ -16,13 +16,17 @@ from app.models import (
     ClauseAnalysis,
     AskQuestionResponse,
     CompareDocumentsResponse,
-    DiffItem
+    DiffItem,
+    SimilarityItem,
+    ClauseDiff,
+    DocumentProfile
 )
 from app.analyzer import (
     analyze_document_locally,
     answer_question_locally,
     compare_documents_locally,
-    generate_counter_email_locally
+    generate_counter_email_locally,
+    generate_inline_redline
 )
 
 logger = logging.getLogger(__name__)
@@ -303,36 +307,59 @@ Output ONLY a JSON object:
         return answer_question_locally(document_text, question)
 
 async def compare_documents_with_gemini(doc_a_name: str, doc_a_text: str, doc_b_name: str, doc_b_text: str, api_key: Optional[str] = None) -> CompareDocumentsResponse:
-    """Compares two contracts using Gemini to evaluate semantic differences and risk shifts."""
+    """Compares two contracts using Gemini to evaluate semantic differences, similarities, redlines, and risk shifts."""
     client = get_client(api_key)
     if not client:
         return compare_documents_locally(doc_a_name, doc_a_text, doc_b_name, doc_b_text)
 
-    system_instruction = """You are a senior contract diff specialist.
-Compare the two provided legal documents (Document A vs Document B).
-Analyze semantic shifts, added or removed rights, liabilities, obligations, and penalties.
-Determine the net favorability shift and provide concrete actionable recommendations.
+    # First get the baseline local comparison so we have complete fallback structures
+    local_baseline = compare_documents_locally(doc_a_name, doc_a_text, doc_b_name, doc_b_text)
+
+    system_instruction = """You are a senior legal redline and contract comparison specialist.
+Compare Document A vs Document B.
+Identify:
+1. similarities: Clauses or terms where both contracts are aligned (e.g. governing law, exclusions, confidentiality definitions).
+2. differences: Clause-by-clause changes (added, removed, modified), the impact on the user vs counterparty, and negotiation advice.
+3. favorability_shift: Which party benefits and by how much percentage (-100 to +100, where negative = favors counterparty, positive = favors user).
+4. recommendation and negotiation_checklist: Actionable next steps.
 
 Output ONLY a JSON object:
 {
   "comparison_summary": "string",
-  "favorability_shift": "string (e.g. Shifted 45% towards Counterparty)",
+  "favorability_shift": "string (e.g. Shifted 65% towards Counterparty)",
+  "favorability_percentage": number (between -100 and 100),
   "risk_delta": "string",
-  "key_differences": [
+  "similarities": [
     {
       "category": "string",
-      "change_type": "added" | "removed" | "modified",
-      "summary": "string",
-      "impact": "More favorable to You" | "More favorable to Counterparty" | "Neutral",
+      "title": "string",
+      "description": "string",
+      "alignment_status": "string",
       "doc_a_excerpt": "string",
       "doc_b_excerpt": "string"
     }
   ],
-  "recommendation": "string"
+  "differences": [
+    {
+      "category": "string",
+      "clause_title": "string",
+      "change_type": "modified" | "added_in_b" | "removed_in_b",
+      "impact": "More favorable to You" | "More favorable to Counterparty" | "Neutral",
+      "risk_severity": "critical" | "warning" | "info" | "safe",
+      "doc_a_title": "string",
+      "doc_a_excerpt": "string",
+      "doc_b_title": "string",
+      "doc_b_excerpt": "string",
+      "summary": "string",
+      "action_advice": "string"
+    }
+  ],
+  "recommendation": "string",
+  "negotiation_checklist": ["string"]
 }
 """
 
-    prompt = f"DOCUMENT A ({doc_a_name}):\n{doc_a_text[:8000]}\n\nDOCUMENT B ({doc_b_name}):\n{doc_b_text[:8000]}"
+    prompt = f"DOCUMENT A ({doc_a_name}):\n{doc_a_text[:7500]}\n\nDOCUMENT B ({doc_b_name}):\n{doc_b_text[:7500]}"
 
     try:
         response, model_used = await generate_with_retry_async(
@@ -341,7 +368,7 @@ Output ONLY a JSON object:
             system_instruction=system_instruction,
             response_mime_type="application/json",
             temperature=0.2,
-            timeout_per_model=6.0
+            timeout_per_model=6.5
         )
         content_text = response.text.strip()
         if content_text.startswith("```json"):
@@ -353,23 +380,85 @@ Output ONLY a JSON object:
         content_text = content_text.strip()
 
         data = json.loads(content_text)
-        diff_items = []
-        for d in data.get("key_differences", []):
-            diff_items.append(DiffItem(
+        
+        # Build differences list
+        differences = []
+        key_diff_items = []
+        raw_diffs = data.get("differences", [])
+        for idx, d in enumerate(raw_diffs, 1):
+            doc_a_ex = d.get("doc_a_excerpt")
+            doc_b_ex = d.get("doc_b_excerpt")
+            redline = generate_inline_redline(doc_a_ex or "", doc_b_ex or "") if (doc_a_ex or doc_b_ex) else None
+            differences.append(ClauseDiff(
+                id=f"gemini_diff_{idx}",
+                category=d.get("category", "General"),
+                clause_title=d.get("clause_title", f"Difference {idx}"),
+                change_type=d.get("change_type", "modified"),
+                impact=d.get("impact", "Neutral"),
+                risk_severity=d.get("risk_severity", "warning"),
+                doc_a_title=d.get("doc_a_title", doc_a_name),
+                doc_a_excerpt=doc_a_ex,
+                doc_b_title=d.get("doc_b_title", doc_b_name),
+                doc_b_excerpt=doc_b_ex,
+                redline_html=redline,
+                summary=d.get("summary", ""),
+                action_advice=d.get("action_advice", "Review this provision before signing.")
+            ))
+            key_diff_items.append(DiffItem(
                 category=d.get("category", "General"),
                 change_type=d.get("change_type", "modified"),
                 summary=d.get("summary", ""),
                 impact=d.get("impact", "Neutral"),
-                doc_a_excerpt=d.get("doc_a_excerpt"),
-                doc_b_excerpt=d.get("doc_b_excerpt")
+                doc_a_excerpt=doc_a_ex,
+                doc_b_excerpt=doc_b_ex
             ))
 
+        # Fallback to local differences if Gemini returned empty
+        if not differences:
+            differences = local_baseline.differences
+            key_diff_items = local_baseline.key_differences
+
+        # Build similarities list
+        similarities = []
+        raw_sims = data.get("similarities", [])
+        for idx, s in enumerate(raw_sims, 1):
+            similarities.append(SimilarityItem(
+                id=f"gemini_sim_{idx}",
+                category=s.get("category", "General"),
+                title=s.get("title", f"Aligned Provision {idx}"),
+                description=s.get("description", ""),
+                alignment_status=s.get("alignment_status", "Substantially Aligned"),
+                doc_a_excerpt=s.get("doc_a_excerpt"),
+                doc_b_excerpt=s.get("doc_b_excerpt")
+            ))
+
+        # Fallback to local similarities if Gemini returned empty
+        if not similarities:
+            similarities = local_baseline.similarities
+
+        fav_shift = data.get("favorability_shift", local_baseline.favorability_shift)
+        fav_pct = int(data.get("favorability_percentage", local_baseline.favorability_percentage))
+
+        added_cnt = sum(1 for d in differences if d.change_type == "added_in_b")
+        removed_cnt = sum(1 for d in differences if d.change_type == "removed_in_b")
+        modified_cnt = sum(1 for d in differences if d.change_type == "modified")
+
         return CompareDocumentsResponse(
-            comparison_summary=data.get("comparison_summary", "Comparison completed successfully."),
-            favorability_shift=data.get("favorability_shift", "Shifted towards Counterparty"),
-            risk_delta=data.get("risk_delta", "Moderate Risk Delta"),
-            key_differences=diff_items,
-            recommendation=data.get("recommendation", "Review redlined differences before signing."),
+            comparison_summary=data.get("comparison_summary", local_baseline.comparison_summary),
+            favorability_shift=fav_shift,
+            favorability_percentage=fav_pct,
+            risk_delta=data.get("risk_delta", local_baseline.risk_delta),
+            doc_a_profile=local_baseline.doc_a_profile,
+            doc_b_profile=local_baseline.doc_b_profile,
+            similarities=similarities,
+            differences=differences,
+            key_differences=key_diff_items,
+            clauses_added_count=added_cnt,
+            clauses_removed_count=removed_cnt,
+            clauses_modified_count=modified_cnt,
+            clauses_identical_count=len(similarities),
+            recommendation=data.get("recommendation", local_baseline.recommendation),
+            negotiation_checklist=data.get("negotiation_checklist", local_baseline.negotiation_checklist),
             ai_engine_used=f"Gemini ({model_used})"
         )
     except Exception as e:

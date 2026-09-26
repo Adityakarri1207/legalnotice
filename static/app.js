@@ -11,7 +11,12 @@ let state = {
   activeMode: "single",
   activeInputTab: "upload",
   apiKey: localStorage.getItem("jurisclear_gemini_api_key") || "",
-  uploadedDocId: null
+  uploadedDocId: null,
+  currentDiffData: null,
+  diffSubView: "all",
+  redlineDisplayMode: "inline",
+  docAName: "Document A",
+  docBName: "Document B"
 };
 
 // Initialization on DOM load
@@ -249,6 +254,10 @@ async function startAnalysis() {
     if (resultsSection) {
       resultsSection.style.display = "block";
     }
+    const singleCard = document.getElementById("singleOverviewCard");
+    if (singleCard) singleCard.style.display = "grid";
+    const compareCard = document.getElementById("compareOverviewCard");
+    if (compareCard) compareCard.style.display = "none";
 
     renderAnalysisResults(data);
     generateAttorneyDossier(data);
@@ -670,7 +679,7 @@ async function startComparison() {
 
   const btn = document.getElementById("btnRunCompare");
   btn.disabled = true;
-  btn.innerHTML = `<span class="spinner"></span> <span>Calculating Semantic Redline & Shifts...</span>`;
+  btn.innerHTML = `<span class="spinner"></span> <span>Calculating Semantic Redline, Similarities & Shifts...</span>`;
 
   try {
     const res = await fetch("/api/compare", {
@@ -691,13 +700,27 @@ async function startComparison() {
     }
 
     const data = await res.json();
-    renderDiffResults(data, docAName, docBName);
+    state.currentDiffData = data;
+    state.docAName = docAName;
+    state.docBName = docBName;
 
-    // Switch to diff tab and show results
-    document.getElementById("resultsSection").style.display = "block";
+    renderDiffDashboard(data, docAName, docBName);
+
+    // Switch view to compare overview & diff tab
+    const singleCard = document.getElementById("singleOverviewCard");
+    if (singleCard) singleCard.style.display = "none";
+
+    const compCard = document.getElementById("compareOverviewCard");
+    if (compCard) compCard.style.display = "block";
+
+    const resultsSection = document.getElementById("resultsSection");
+    if (resultsSection) resultsSection.style.display = "block";
+
     switchFeatureTab("diff");
-    document.getElementById("resultsSection").scrollIntoView({ behavior: "smooth" });
-    showToast("Contract comparison complete!", "success");
+    if (compCard) {
+      compCard.scrollIntoView({ behavior: "smooth" });
+    }
+    showToast("Comparative Redline & Similarity Analysis Complete!", "success");
 
   } catch (err) {
     alert("Diff Error: " + err.message);
@@ -707,42 +730,328 @@ async function startComparison() {
   }
 }
 
-function renderDiffResults(data, nameA, nameB) {
-  document.getElementById("diffSummaryText").textContent = data.comparison_summary;
-  document.getElementById("diffFavorability").textContent = data.favorability_shift;
-  document.getElementById("diffRiskDelta").textContent = data.risk_delta;
-  document.getElementById("diffRecommendationText").textContent = data.recommendation;
+function renderDiffDashboard(data, nameA, nameB) {
+  // 1. Dual Document Profiles
+  if (data.doc_a_profile) {
+    const pA = data.doc_a_profile;
+    document.getElementById("profileDocAName").textContent = pA.name || nameA;
+    document.getElementById("profileDocAType").textContent = pA.document_type || "Contract";
+    document.getElementById("profileDocAClauses").textContent = `${pA.clause_count} clauses`;
+    
+    const scoreAEl = document.getElementById("profileDocAScore");
+    scoreAEl.textContent = `Score: ${pA.risk_score}/100`;
+    scoreAEl.className = `doc-profile-score ${pA.risk_score < 40 ? 'pill-safe' : (pA.risk_score < 70 ? 'pill-warning' : 'pill-critical')}`;
+    document.getElementById("profileDocAPosture").textContent = pA.posture || "Standard";
 
+    const highlightsA = document.getElementById("profileDocAHighlights");
+    highlightsA.innerHTML = "";
+    (pA.key_highlights || []).forEach(h => {
+      const li = document.createElement("li");
+      li.textContent = h;
+      highlightsA.appendChild(li);
+    });
+  }
+
+  if (data.doc_b_profile) {
+    const pB = data.doc_b_profile;
+    document.getElementById("profileDocBName").textContent = pB.name || nameB;
+    document.getElementById("profileDocBType").textContent = pB.document_type || "Contract";
+    document.getElementById("profileDocBClauses").textContent = `${pB.clause_count} clauses`;
+    
+    const scoreBEl = document.getElementById("profileDocBScore");
+    scoreBEl.textContent = `Score: ${pB.risk_score}/100`;
+    scoreBEl.className = `doc-profile-score ${pB.risk_score < 40 ? 'pill-safe' : (pB.risk_score < 70 ? 'pill-warning' : 'pill-critical')}`;
+    document.getElementById("profileDocBPosture").textContent = pB.posture || "Standard";
+
+    const highlightsB = document.getElementById("profileDocBHighlights");
+    highlightsB.innerHTML = "";
+    (pB.key_highlights || []).forEach(h => {
+      const li = document.createElement("li");
+      li.textContent = h;
+      highlightsB.appendChild(li);
+    });
+  }
+
+  // 2. Tug-of-War Balance Meter & Metrics
+  const engTag = document.getElementById("compEngineTag");
+  if (engTag) engTag.textContent = `Powered by ${data.ai_engine_used || "JurisClear AI"}`;
+
+  const shiftBadge = document.getElementById("compareShiftBadge");
+  shiftBadge.textContent = data.favorability_shift;
+  if (data.favorability_shift.includes("Counterparty")) {
+    shiftBadge.className = "risk-pill pill-critical";
+  } else if (data.favorability_shift.includes("You")) {
+    shiftBadge.className = "risk-pill pill-safe";
+  } else {
+    shiftBadge.className = "risk-pill pill-warning";
+  }
+
+  document.getElementById("compareRiskDeltaText").textContent = data.risk_delta;
+
+  const pct = data.favorability_percentage !== undefined ? data.favorability_percentage : 0;
+  // Left is You (0%), Center is 50%, Right is Counterparty (100%)
+  const pointerPos = Math.min(Math.max(50 - (pct * 0.5), 10), 90);
+  document.getElementById("balancePointer").style.left = `${pointerPos}%`;
+
+  const totalDiffs = (data.differences && data.differences.length) || (data.key_differences && data.key_differences.length) || 0;
+  const totalSims = (data.similarities && data.similarities.length) || 0;
+
+  document.getElementById("compStatDiffs").textContent = `${totalDiffs} Key Differences`;
+  document.getElementById("compStatSims").textContent = `${totalSims} Aligned Similarities`;
+  document.getElementById("compStatAdded").textContent = `+${data.clauses_added_count || 0} Added Provisions`;
+  document.getElementById("compStatRemoved").textContent = `-${data.clauses_removed_count || 0} Removed Provisions`;
+
+  document.getElementById("compareRecommendationText").textContent = data.recommendation;
+
+  // 3. Tab Count Badges
+  document.getElementById("countDiffAll").textContent = totalDiffs;
+  document.getElementById("countDiffSims").textContent = totalSims;
+  const critCount = data.differences ? data.differences.filter(d => d.risk_severity === "critical").length : 0;
+  document.getElementById("countDiffCritical").textContent = critCount;
+  const playbookCount = (data.negotiation_checklist && data.negotiation_checklist.length) || 0;
+  document.getElementById("countDiffPlaybook").textContent = playbookCount;
+  document.getElementById("countDiffBadge").textContent = `${totalDiffs} Differences`;
+
+  // 4. Render Similarities View
+  renderSimilarities(data.similarities || [], nameA, nameB);
+
+  // 5. Render Clause-by-Clause Differences View
+  renderClauseDiffs(data.differences || [], data.key_differences || [], nameA, nameB);
+
+  // 6. Render Negotiation Playbook Checklist
+  renderDiffPlaybook(data.negotiation_checklist || []);
+}
+
+function renderSimilarities(similarities, nameA, nameB) {
+  const container = document.getElementById("similaritiesGrid");
+  container.innerHTML = "";
+
+  if (!similarities || similarities.length === 0) {
+    container.innerHTML = `<div style="grid-column: 1/-1; padding: 1.5rem; text-align: center; color: var(--text-muted); background: #f8fafc; border-radius: var(--radius-md);">No explicit shared provisions extracted between these documents.</div>`;
+    return;
+  }
+
+  similarities.forEach(sim => {
+    const card = document.createElement("div");
+    card.className = "similarity-card";
+
+    let quotesHtml = "";
+    if (sim.doc_a_excerpt || sim.doc_b_excerpt) {
+      quotesHtml = `
+        <div class="similarity-quotes">
+          ${sim.doc_a_excerpt ? `<div><strong style="color: #2563eb; font-size: 0.78rem;">${escapeHtml(nameA)}:</strong> <span style="font-style: italic;">"${escapeHtml(sim.doc_a_excerpt)}"</span></div>` : ''}
+          ${sim.doc_b_excerpt ? `<div><strong style="color: #059669; font-size: 0.78rem;">${escapeHtml(nameB)}:</strong> <span style="font-style: italic;">"${escapeHtml(sim.doc_b_excerpt)}"</span></div>` : ''}
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="similarity-header">
+        <span class="similarity-title">${escapeHtml(sim.title)}</span>
+        <span class="badge" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 0.74rem;">${escapeHtml(sim.alignment_status || 'Aligned')}</span>
+      </div>
+      <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.35rem;">
+        Category: ${escapeHtml(sim.category)}
+      </div>
+      <div class="similarity-desc">${escapeHtml(sim.description)}</div>
+      ${quotesHtml}
+    `;
+    container.appendChild(card);
+  });
+}
+
+function renderClauseDiffs(differences, fallbackDiffs, nameA, nameB) {
   const list = document.getElementById("diffItemsList");
   list.innerHTML = "";
 
-  data.key_differences.forEach(diff => {
-    const card = document.createElement("div");
-    card.className = `diff-item-card ${diff.change_type}`;
+  const items = differences.length > 0 ? differences : fallbackDiffs;
 
-    let impactBadge = "badge-info";
-    if (diff.impact.includes("Counterparty")) impactBadge = "pill-critical";
-    else if (diff.impact.includes("You")) impactBadge = "pill-safe";
+  if (!items || items.length === 0) {
+    list.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: var(--text-muted);">No significant clause divergences found.</div>`;
+    return;
+  }
+
+  items.forEach(d => {
+    const card = document.createElement("div");
+    const changeType = d.change_type || 'modified';
+    const severity = d.risk_severity || (d.impact && d.impact.includes("Counterparty") ? "critical" : "safe");
+    card.className = `diff-item-card ${changeType} ${severity}-glow`;
+    card.setAttribute("data-diff-severity", severity);
+
+    let impactPill = "pill-warning";
+    if (d.impact && d.impact.includes("Counterparty")) impactPill = "pill-critical";
+    else if (d.impact && d.impact.includes("You")) impactPill = "pill-safe";
+
+    const title = d.clause_title || d.category;
+    const summary = d.summary;
+    const advice = d.action_advice || "Review and negotiate this clause before signing.";
+    const redline = d.redline_html;
+
+    let contentHtml = "";
+    if (state.redlineDisplayMode === 'side' || !redline) {
+      // Side-by-side split view
+      contentHtml = `
+        <div class="diff-side-by-side-grid">
+          <div class="diff-col-box col-a">
+            <div style="font-weight: 800; font-size: 0.78rem; color: #2563eb; margin-bottom: 0.25rem;">${escapeHtml(nameA)} (${escapeHtml(d.doc_a_title || 'Original')})</div>
+            <div>${escapeHtml(d.doc_a_excerpt || "Standard common-law / unaddressed")}</div>
+          </div>
+          <div class="diff-col-box col-b">
+            <div style="font-weight: 800; font-size: 0.78rem; color: #ef4444; margin-bottom: 0.25rem;">${escapeHtml(nameB)} (${escapeHtml(d.doc_b_title || 'Proposed')})</div>
+            <div style="font-weight: 600; color: #1e3a8a;">${escapeHtml(d.doc_b_excerpt || "Not specified")}</div>
+          </div>
+        </div>
+      `;
+    } else {
+      // Inline redline markup view
+      contentHtml = `
+        <div class="redline-markup-box">
+          <div style="font-size: 0.76rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase;">Inline Redline (Word-for-Word Divergence):</div>
+          <div>${d.redline_html}</div>
+        </div>
+      `;
+    }
 
     card.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap;">
-        <span style="font-weight: 800; font-size: 1.05rem;">${diff.category}</span>
-        <span class="badge ${impactBadge}">${diff.impact}</span>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <span style="font-weight: 800; font-size: 1.1rem; color: var(--secondary);">${escapeHtml(title)}</span>
+          <span class="detail-label" style="margin-left: 0.5rem;">[${escapeHtml(d.category)}]</span>
+        </div>
+        <div style="display: flex; gap: 0.4rem; align-items: center;">
+          <span class="badge" style="text-transform: uppercase; font-size: 0.74rem;">${escapeHtml(changeType.replace('_', ' '))}</span>
+          <span class="risk-pill ${impactPill}">${escapeHtml(d.impact)}</span>
+        </div>
       </div>
-      <div style="font-size: 0.94rem; margin-bottom: 0.6rem;">${escapeHtml(diff.summary)}</div>
-      <div class="diff-excerpts">
-        <div>
-          <strong style="color: var(--text-muted); font-size: 0.78rem;">${nameA}:</strong>
-          <p style="margin-top: 0.25rem;">${escapeHtml(diff.doc_a_excerpt || "Not specified / Standard")}</p>
-        </div>
-        <div>
-          <strong style="color: var(--text-muted); font-size: 0.78rem;">${nameB}:</strong>
-          <p style="margin-top: 0.25rem; font-weight: 700; color: #1e3a8a;">${escapeHtml(diff.doc_b_excerpt || "Not specified")}</p>
-        </div>
+      <div style="font-size: 0.94rem; color: var(--text-secondary); line-height: 1.55; margin-bottom: 0.75rem;">
+        ${escapeHtml(summary)}
+      </div>
+      ${contentHtml}
+      <div class="diff-advice-box">
+        <strong>💡 Strategic Action:</strong> ${escapeHtml(advice)}
       </div>
     `;
+
     list.appendChild(card);
   });
+}
+
+function renderDiffPlaybook(checklist) {
+  const container = document.getElementById("diffPlaybookChecklist");
+  container.innerHTML = "";
+
+  if (!checklist || checklist.length === 0) {
+    container.innerHTML = `<div style="color: var(--text-muted);">No specific negotiation items generated. Both contracts appear relatively balanced.</div>`;
+    return;
+  }
+
+  checklist.forEach((item, idx) => {
+    const div = document.createElement("div");
+    div.className = "playbook-step-card";
+    div.innerHTML = `
+      <input type="checkbox" id="diff-chk-${idx}" style="margin-top: 0.2rem; cursor: pointer;">
+      <label for="diff-chk-${idx}" style="cursor: pointer; flex: 1;">
+        <strong>Step ${idx + 1}:</strong> ${escapeHtml(item)}
+      </label>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function filterDiffSubView(subView) {
+  state.diffSubView = subView;
+  document.querySelectorAll(".diff-filter-chip").forEach(b => b.classList.remove("active"));
+  const btnMap = {
+    all: "diffSubTabAll",
+    sims: "diffSubTabSims",
+    critical: "diffSubTabCritical",
+    playbook: "diffSubTabPlaybook"
+  };
+  const activeBtn = document.getElementById(btnMap[subView]);
+  if (activeBtn) activeBtn.classList.add("active");
+
+  const simsContainer = document.getElementById("diffSimsContainer");
+  const clausesContainer = document.getElementById("diffClausesContainer");
+  const playbookContainer = document.getElementById("diffPlaybookContainer");
+
+  if (subView === 'all') {
+    if (simsContainer) simsContainer.style.display = "block";
+    if (clausesContainer) clausesContainer.style.display = "block";
+    if (playbookContainer) playbookContainer.style.display = "none";
+    filterDiffItemsBySeverity('all');
+  } else if (subView === 'sims') {
+    if (simsContainer) simsContainer.style.display = "block";
+    if (clausesContainer) clausesContainer.style.display = "none";
+    if (playbookContainer) playbookContainer.style.display = "none";
+  } else if (subView === 'critical') {
+    if (simsContainer) simsContainer.style.display = "none";
+    if (clausesContainer) clausesContainer.style.display = "block";
+    if (playbookContainer) playbookContainer.style.display = "none";
+    filterDiffItemsBySeverity('critical');
+  } else if (subView === 'playbook') {
+    if (simsContainer) simsContainer.style.display = "none";
+    if (clausesContainer) clausesContainer.style.display = "none";
+    if (playbookContainer) playbookContainer.style.display = "block";
+  }
+}
+
+function filterDiffItemsBySeverity(severity) {
+  const cards = document.querySelectorAll("#diffItemsList .diff-item-card");
+  cards.forEach(c => {
+    if (severity === 'all') {
+      c.style.display = "block";
+    } else {
+      const cardSev = c.getAttribute("data-diff-severity");
+      c.style.display = cardSev === severity ? "block" : "none";
+    }
+  });
+}
+
+function setRedlineDisplayMode(mode) {
+  state.redlineDisplayMode = mode;
+  document.getElementById("redlineInlineBtn").classList.toggle("active", mode === 'inline');
+  document.getElementById("redlineSideBtn").classList.toggle("active", mode === 'side');
+  if (state.currentDiffData) {
+    renderClauseDiffs(state.currentDiffData.differences || [], state.currentDiffData.key_differences || [], state.docAName || "Document A", state.docBName || "Document B");
+    if (state.diffSubView === 'critical') {
+      filterDiffItemsBySeverity('critical');
+    }
+  }
+}
+
+function bridgeDiffToNegotiationEmail() {
+  if (!state.currentDiffData) return;
+  switchFeatureTab('playbook');
+  
+  // Auto-populate clauses selector with the diff categories
+  const emailSelector = document.getElementById("emailClausesSelector");
+  if (emailSelector) {
+    emailSelector.innerHTML = "";
+    const items = state.currentDiffData.differences || state.currentDiffData.key_differences || [];
+    items.forEach(d => {
+      const title = d.clause_title || d.category;
+      const div = document.createElement("div");
+      div.style.marginBottom = "0.4rem";
+      div.innerHTML = `
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+          <input type="checkbox" value="${escapeHtml(title)}" checked>
+          <span>${escapeHtml(title)}</span>
+        </label>
+      `;
+      emailSelector.appendChild(div);
+    });
+  }
+
+  const roleSelect = document.getElementById("emailRecipientRole");
+  if (roleSelect) {
+    roleSelect.value = "Vendor / Counterparty Counsel";
+  }
+
+  showToast("Transferred differences into Counter-Proposal Email Drafter!", "success");
+}
+
+function renderDiffResults(data, nameA, nameB) {
+  renderDiffDashboard(data, nameA, nameB);
 }
 
 // TAB 4: Grounded Q&A Chat
