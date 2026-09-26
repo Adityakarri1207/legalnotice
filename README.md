@@ -123,7 +123,27 @@ JurisClear AI/
 
 ---
 
-## 🏃 Quickstart Guide
+## 🌐 1-Click Cloud Deployment
+
+Deploy JurisClear AI with a single click to free cloud platforms:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Adityakarri1207/legalnotice)
+
+### Instant Cloud Hosting Steps:
+1. **Render.com (Free Tier)**:
+   - Click the **Deploy to Render** button above or visit [Render New Web Service](https://dashboard.render.com/web/new).
+   - Connect the repository: `https://github.com/Adityakarri1207/legalnotice`
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - *(Optional)* Add Environment Variable: `GEMINI_API_KEY` with your Gemini key.
+   - Click **Create Web Service** — Render deploys your live HTTPS link in under 2 minutes!
+
+2. **Railway / Koyeb / Fly.io / Docker**:
+   - The repository includes a production-ready `Dockerfile` and `Procfile`. Simply link the GitHub repository to Railway or Koyeb and it will deploy automatically.
+
+---
+
+## 🏃 Quickstart Guide (Local)
 
 ### Option 1: One-Click Launcher (Windows)
 Double-click `run.bat` or run:
