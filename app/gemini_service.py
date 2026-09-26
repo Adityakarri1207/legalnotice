@@ -61,7 +61,7 @@ async def generate_with_retry_async(
     system_instruction: str,
     response_mime_type: str = "application/json",
     temperature: float = 0.2,
-    timeout_per_model: float = 9.0
+    timeout_per_model: float = 16.0
 ):
     """
     Executes model generation in a background thread with an async timeout.
@@ -159,7 +159,7 @@ Only output the JSON object without markdown code fences or backticks.
             system_instruction=system_instruction,
             response_mime_type="application/json",
             temperature=0.2,
-            timeout_per_model=6.0
+            timeout_per_model=16.0
         )
         content_text = response.text.strip()
         # Clean potential markdown wrapping if present
@@ -282,7 +282,7 @@ Output ONLY a JSON object:
             system_instruction=system_instruction,
             response_mime_type="application/json",
             temperature=0.2,
-            timeout_per_model=5.0
+            timeout_per_model=12.0
         )
         content_text = response.text.strip()
         if content_text.startswith("```json"):
@@ -368,7 +368,7 @@ Output ONLY a JSON object:
             system_instruction=system_instruction,
             response_mime_type="application/json",
             temperature=0.2,
-            timeout_per_model=6.5
+            timeout_per_model=16.0
         )
         content_text = response.text.strip()
         if content_text.startswith("```json"):
@@ -494,7 +494,7 @@ Output ONLY a JSON object:
             system_instruction=system_instruction,
             response_mime_type="application/json",
             temperature=0.4,
-            timeout_per_model=5.0
+            timeout_per_model=12.0
         )
         content_text = response.text.strip()
         if content_text.startswith("```json"):

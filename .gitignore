@@ -26,4 +26,6 @@ desktop.ini
 .vscode/
 .idea/
 *.sublime-project
-*.sublime-workspace
+# Binaries & Tunnels
+cloudflared.exe
+*.exe
